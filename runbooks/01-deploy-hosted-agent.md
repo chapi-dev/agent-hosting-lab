@@ -132,6 +132,14 @@ Two notes on this block:
   `8.0Gi`.** It is optional, but an unstated default is a default that can change under you.
   If your agent needs more than 4 vCPU or 8 GiB, hosted is not the right model for it.
 
+  Two Microsoft pages disagree on this range: the `azure.yaml` reference gives the values above,
+  while the hosted agent concepts page lists three fixed tiers (0.5, 1 and 2 vCPU). Rather than
+  pick one, we tested the lower bound. Redeploying this agent at `cpu: "0.25"` / `memory: 0.5Gi`
+  succeeded, the values came back verbatim in the agent definition returned by the API, and the
+  container booted and answered in 11.6 s — against 10.3 s for the same agent at `0.5` / `1Gi`.
+  The wider range is the accurate one. Sizing down is a real lever, and it costs roughly a second
+  of cold start.
+
 ## Step 4 — Deploy
 
 ```powershell
