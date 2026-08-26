@@ -1,0 +1,93 @@
+{
+  "experiment": "session_state",
+  "utc": "20260826T021824Z",
+  "results": [
+    {
+      "target": "selfhosted-naive",
+      "kind": "selfhosted",
+      "session_id": "exp1-5e430bdce2",
+      "transcript": [
+        {
+          "turn": "Add Paris to my trip",
+          "reply": "Added Paris to your trip.",
+          "replica": "aghl-selfhosted-naive--s11oz3g-5886489987-qwk5h",
+          "state_backend": "disk",
+          "latency_ms": 4172
+        },
+        {
+          "turn": "Add Rome",
+          "reply": "Added Rome.",
+          "replica": "aghl-selfhosted-naive--s11oz3g-5886489987-ngqj6",
+          "state_backend": "disk",
+          "latency_ms": 2676
+        },
+        {
+          "turn": "What is in my trip?",
+          "reply": "Your trip currently includes: Paris",
+          "replica": "aghl-selfhosted-naive--s11oz3g-5886489987-qwk5h",
+          "state_backend": "disk",
+          "latency_ms": 1692
+        }
+      ],
+      "verdict": {
+        "passed": false,
+        "found": [
+          "paris"
+        ],
+        "missing": [
+          "rome"
+        ],
+        "distinct_replicas": 2,
+        "replicas": [
+          "aghl-selfhosted-naive--s11oz3g-5886489987-ngqj6",
+          "aghl-selfhosted-naive--s11oz3g-5886489987-qwk5h"
+        ],
+        "mean_latency_ms": 2847
+      }
+    },
+    {
+      "target": "hosted-agent",
+      "kind": "hosted",
+      "session_id": "exp1-f44cf90bef",
+      "transcript": [
+        {
+          "turn": "Add Paris to my trip",
+          "reply": "Added Paris.",
+          "replica": "n/a (platform-managed session)",
+          "state_backend": "hosted-session ($HOME)",
+          "response_id": "caresp_4a3c2b28d38654e3006lhrNeD1nQG3mt1S9rRlY99jIRCzmsKL",
+          "latency_ms": 9868
+        },
+        {
+          "turn": "Add Rome",
+          "reply": "Added Rome.",
+          "replica": "n/a (platform-managed session)",
+          "state_backend": "hosted-session ($HOME)",
+          "response_id": "caresp_4a3c2b28d38654e300Wi30DAcG38YjrFx0K0jJuzIlZOBmczdx",
+          "latency_ms": 3107
+        },
+        {
+          "turn": "What is in my trip?",
+          "reply": "Your trip is empty.",
+          "replica": "n/a (platform-managed session)",
+          "state_backend": "hosted-session ($HOME)",
+          "response_id": "caresp_4a3c2b28d38654e300JL7b6fEKhApFmJ8DHsyvok8nbqalt8Kb",
+          "latency_ms": 2300
+        }
+      ],
+      "verdict": {
+        "passed": false,
+        "found": [],
+        "missing": [
+          "paris",
+          "rome"
+        ],
+        "distinct_replicas": 1,
+        "replicas": [
+          "n/a (platform-managed session)"
+        ],
+        "mean_latency_ms": 5092
+      }
+    }
+  ]
+}

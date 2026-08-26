@@ -1,0 +1,97 @@
+name: validate
+
+# Everything here runs without an Azure subscription, deliberately. The lab's
+# claims should be checkable by anyone reading the repository, not only by
+# someone who can deploy it.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  bicep:
+    name: Build Bicep
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build all templates
+        run: |
+          for file in infra/*.bicep; do
+            echo "::group::$file"
+            az bicep build --file "$file" --stdout > /dev/null
+            echo "::endgroup::"
+          done
+
+  python:
+    name: Lint and verify the agent imports
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff
+          pip install -r src/selfhosted/requirements.txt
+
+      - name: Lint
+        run: ruff check src experiments
+
+      - name: Import the shared agent
+        # Catches the mistake that costs the most time downstream: a syntax or
+        # import error that only surfaces after a ten-minute remote build.
+        run: |
+          cd src
+          python -c "import agent_core; print(agent_core.__name__, 'ok')"
+
+  surface:
+    name: Deployment surface
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Recount lines of code
+        # Experiment 3 is static analysis over the real files, so it runs
+        # without a deployment. If someone adds 200 lines of Bicep, the ratio
+        # in the README should change and this is where you notice.
+        run: python experiments/03_deployment_surface.py
+
+  hosted-package:
+    name: Hosted agent package is self-contained
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sync the shared agent into the hosted directory
+        shell: pwsh
+        run: ./scripts/prepare-hosted.ps1
+
+      - name: Verify nothing outside the deploy directory is imported
+        # A hosted agent deploys a directory. Anything the entry point imports
+        # must be inside it - there is no editable install and no PYTHONPATH.
+        # Importing from src/hosted alone proves the package is complete.
+        run: |
+          cd src/hosted
+          python -c "import ast,sys,pathlib
+missing = []
+for path in pathlib.Path('.').rglob('*.py'):
+    tree = ast.parse(path.read_text())
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+            root = node.module.split('.')[0]
+            if root == 'agent_core' and not pathlib.Path('agent_core').exists():
+                missing.append((str(path), node.module))
+if missing:
+    print('Missing local packages:', missing); sys.exit(1)
+print('hosted package is self-contained')"

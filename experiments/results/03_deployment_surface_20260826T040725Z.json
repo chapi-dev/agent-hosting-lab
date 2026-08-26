@@ -1,0 +1,40 @@
+{
+  "experiment": "deployment_surface",
+  "utc": "20260826T040725Z",
+  "report": {
+    "shared_agent_logic": {
+      "lines": 122,
+      "files": [
+        "src/agent_core/__init__.py (13)",
+        "src/agent_core/agent.py (30)",
+        "src/agent_core/state.py (79)"
+      ]
+    },
+    "self_hosted_only": {
+      "server.py": 84,
+      "Dockerfile": 25,
+      "requirements.txt": 9,
+      "apps.bicep": 255,
+      "network.bicep": 96,
+      "environment-vnet.bicep": 40,
+      "total": 509,
+      "ratio_to_agent": 4.17
+    },
+    "hosted_only": {
+      "main.py": 20,
+      "requirements.txt": 4,
+      "azure.yaml": 29,
+      "total": 53,
+      "ratio_to_agent": 0.43
+    },
+    "shared_infrastructure": {
+      "main.bicep": 222,
+      "note": "Foundry project, model deployment, observability, identity - needed by both models."
+    },
+    "hybrid_router": {
+      "router.py": 141,
+      "note": "The price of the hybrid pattern: one small stateless service you own, on top of a hosted runtime you do not."
+    },
+    "multiplier": 9.6
+  }
+}

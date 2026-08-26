@@ -1,0 +1,118 @@
+{
+  "experiment": "cold_start",
+  "utc": "20260826T040725Z",
+  "results": {
+    "selfhosted-naive": {
+      "kind": "selfhosted",
+      "rounds": 3,
+      "first_turn_ms": {
+        "median": 2257,
+        "min": 2243,
+        "max": 2366,
+        "samples": [
+          2257,
+          2243,
+          2366
+        ]
+      },
+      "warm_turn_ms": {
+        "median": 1878,
+        "min": 1622,
+        "max": 4525,
+        "samples": [
+          1622,
+          1780,
+          1966,
+          4525,
+          1812,
+          1943
+        ]
+      },
+      "cold_start_penalty_ms": 380
+    },
+    "selfhosted-hardened": {
+      "kind": "selfhosted",
+      "rounds": 3,
+      "first_turn_ms": {
+        "median": 2103,
+        "min": 2010,
+        "max": 3842,
+        "samples": [
+          2103,
+          2010,
+          3842
+        ]
+      },
+      "warm_turn_ms": {
+        "median": 2482,
+        "min": 1639,
+        "max": 6485,
+        "samples": [
+          2140,
+          6485,
+          3488,
+          1639,
+          2316,
+          2648
+        ]
+      },
+      "cold_start_penalty_ms": -379
+    },
+    "hosted-agent": {
+      "kind": "hosted",
+      "rounds": 3,
+      "first_turn_ms": {
+        "median": 8923,
+        "min": 8386,
+        "max": 9168,
+        "samples": [
+          9168,
+          8386,
+          8923
+        ]
+      },
+      "warm_turn_ms": {
+        "median": 2122,
+        "min": 2048,
+        "max": 2554,
+        "samples": [
+          2048,
+          2353,
+          2161,
+          2554,
+          2083,
+          2059
+        ]
+      },
+      "cold_start_penalty_ms": 6801
+    },
+    "hybrid-router": {
+      "kind": "router",
+      "rounds": 3,
+      "first_turn_ms": {
+        "median": 8893,
+        "min": 8053,
+        "max": 9587,
+        "samples": [
+          9587,
+          8053,
+          8893
+        ]
+      },
+      "warm_turn_ms": {
+        "median": 2372,
+        "min": 2122,
+        "max": 11001,
+        "samples": [
+          2122,
+          2230,
+          2417,
+          2326,
+          2729,
+          11001
+        ]
+      },
+      "cold_start_penalty_ms": 6522
+    }
+  }
+}

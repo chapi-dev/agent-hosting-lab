@@ -1,0 +1,30 @@
+# Environment and secrets
+.env
+.env.lab
+.azure/
+
+# Generated: a copy of src/agent_core, refreshed by scripts/prepare-hosted.ps1.
+# Edit src/agent_core/ instead - this directory is overwritten on every deploy.
+src/hosted/agent_core/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Deployment scratch. experiments/results/ is deliberately NOT ignored:
+# those JSON files are the evidence behind every number in the docs.
+infra/deploy-output.json
+infra/outputs.json
+experiments/_smoke_state/
+
+# Editors / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db

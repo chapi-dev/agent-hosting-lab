@@ -1,0 +1,19 @@
+# Hosted runtime dependencies.
+#
+# Compare with src/selfhosted/requirements.txt. Gone: the web framework, the
+# ASGI server, the telemetry exporter, the database driver. The agent server
+# library brings the HTTP surface, and the platform brings the rest.
+#
+# Note `agent-framework-core`, not `agent-framework`. The umbrella package pulls
+# in agent-framework-hyperlight, which depends on hyperlight-sandbox-backend-wasm,
+# which has no distribution for the hosted runtime. Installing it fails with a
+# ResolutionImpossible error that names thirteen versions of a package you never
+# asked for and does not mention that you only needed the core.
+#
+# This is what a beta ecosystem feels like from the inside, and it is a real
+# input to the hosting decision: the platform is ready, the Python packaging
+# around it is still settling.
+agent-framework-core==1.14.0
+agent-framework-foundry==1.11.0
+azure-ai-agentserver-responses==2.1.0b2
+azure-identity==1.25.3

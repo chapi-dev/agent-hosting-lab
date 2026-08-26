@@ -1,0 +1,40 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+
+name: agent-hosting-lab
+services:
+    aghl-project:
+        host: azure.ai.project
+        endpoint: https://aghl-foundry-nphhsfaf75l2a.services.ai.azure.com/api/projects/aghl-project
+    trip-planner:
+        project: ./src/hosted
+        host: azure.ai.agent
+        language: python
+        uses:
+            - aghl-project
+        codeConfiguration:
+            dependencyResolution: remote_build
+            entryPoint: main.py
+            runtime: python_3_13
+        env:
+            # Correcting an assumption this lab got wrong on the first deploy.
+            #
+            # The docs say the platform injects APPLICATIONINSIGHTS_CONNECTION_STRING,
+            # and it does. It is easy to assume the project endpoint arrives the
+            # same way. It does not: the first deploy crashed on startup with
+            # KeyError: 'PROJECT_ENDPOINT' and the session never became ready,
+            # surfacing to the caller as HTTP 424 session_not_ready.
+            #
+            # Telemetry is injected. Configuration is yours. Declare it here.
+            AZURE_AI_PROJECT_ENDPOINT: https://aghl-foundry-nphhsfaf75l2a.services.ai.azure.com/api/projects/aghl-project
+            MODEL_DEPLOYMENT_NAME: gpt-5.4-mini
+        container:
+            resources:
+                cpu: "0.5"
+                memory: 1Gi
+        kind: hosted
+        name: trip-planner
+        protocols:
+            - protocol: responses
+              version: 2.0.0
+infra:
+    provider: microsoft.foundry

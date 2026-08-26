@@ -1,0 +1,38 @@
+[project]
+name = "agent-hosting-lab"
+version = "1.0.0"
+description = "Self-hosted vs Foundry-hosted agent comparison lab"
+requires-python = ">=3.11"
+dependencies = [
+    "agent-framework",
+    "agent-framework-foundry",
+    "azure-identity",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+# Pinned explicitly so CI and a developer laptop agree. Without this, ruff
+# picks up whatever user-level configuration happens to exist and the lint
+# result depends on the machine.
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle - includes E402, which the experiments suppress
+    "F",   # pyflakes
+    "I",   # import sorting
+    "UP",  # pyupgrade
+    "B",   # bugbear
+]
+ignore = [
+    # Long URLs in comments and docstrings (Azure endpoints, policy names)
+    # would otherwise force unreadable line breaks mid-identifier.
+    "E501",
+]

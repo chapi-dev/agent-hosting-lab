@@ -1,0 +1,56 @@
+{
+  "experiment": "session_state",
+  "utc": "20260826T020522Z",
+  "results": [
+    {
+      "target": "selfhosted-naive",
+      "kind": "selfhosted",
+      "session_id": "exp1-e306d5373f",
+      "transcript": [
+        {
+          "turn": "Add Paris to my trip",
+          "reply": "Added Paris to your trip.",
+          "replica": "aghl-selfhosted-naive--s11oz3g-5886489987-ngqj6",
+          "state_backend": "disk",
+          "latency_ms": 5318
+        },
+        {
+          "turn": "Add Rome",
+          "reply": "Added Rome.",
+          "replica": "aghl-selfhosted-naive--s11oz3g-5886489987-qwk5h",
+          "state_backend": "disk",
+          "latency_ms": 2265
+        },
+        {
+          "turn": "What is in my trip?",
+          "reply": "Paris",
+          "replica": "aghl-selfhosted-naive--s11oz3g-5886489987-ngqj6",
+          "state_backend": "disk",
+          "latency_ms": 5152
+        }
+      ],
+      "verdict": {
+        "passed": false,
+        "found": [
+          "paris"
+        ],
+        "missing": [
+          "rome"
+        ],
+        "distinct_replicas": 2,
+        "replicas": [
+          "aghl-selfhosted-naive--s11oz3g-5886489987-ngqj6",
+          "aghl-selfhosted-naive--s11oz3g-5886489987-qwk5h"
+        ],
+        "mean_latency_ms": 4245
+      }
+    },
+    {
+      "target": "hosted-agent",
+      "error": "Client error '424 Failed Dependency' for url 'https://aghl-foundry-nphhsfaf75l2a.services.ai.azure.com/api/projects/aghl-project/agents/trip-planner/endpoint/protocols/openai/responses?api-version=v1'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/424",
+      "verdict": {
+        "passed": false
+      }
+    }
+  ]
+}
