@@ -46,9 +46,15 @@ azd ai agent show trip-planner --query "Endpoint (responses)"
 `src/selfhosted/router.py`, 110 effective lines. The important parts:
 
 ```python
-ROUTES = { "trip": "trip-planner" }
+ROUTES = {
+    "trip": "trip-planner",
+    "corporate-travel": "trip-planner-corporate",
+}
 
-ENTITLEMENTS = { "trip-planner": {"*"} }     # replace with real groups
+ENTITLEMENTS = {
+    "trip-planner": {"*"},                        # any caller
+    "trip-planner-corporate": {"travel-admin"},   # that group, and nobody else
+}
 
 def classify(message: str) -> str:
     ...                                      # a model or a classifier service
@@ -60,6 +66,35 @@ def authorize(agent: str, groups: set[str]) -> bool:
 
 Adding the second agent is a dictionary entry and a deployment — not an architecture change.
 That is the property that makes this shape future-proof.
+
+### Why there are two entries rather than one
+
+Both names resolve to the same deployed hosted agent, because the lab only has one. They are
+separate entries so that the authorization check has something to allow *and* something to
+deny.
+
+That is not a presentational detail. An earlier version of this lab had a single agent entitled
+to `*`, which meant `authorize()` returned `True` on every call it had ever received: the deny
+branch had never executed against a live deployment. The check was written, reviewed and
+deployed, and still proved nothing. A control that has never refused anything is an assertion.
+
+`experiments/07_authorization_routing.py` now exercises all four combinations against the
+running router:
+
+| Message | Groups | Result |
+|---|---|---|
+| ordinary trip | *(none)* | allowed → `trip-planner` |
+| corporate travel | `travel-admin` | allowed → `trip-planner-corporate` |
+| corporate travel | `engineering` | **403** — holding *some* group is not holding the required one |
+| corporate travel | *(none)* | **403** — an unstated entitlement is not a granted one |
+
+Measured 4/4. The last row is the one to keep: a caller who supplies no groups must not be
+treated as a wildcard caller. Getting that backwards is how an entitlement check silently
+passes for everybody who omits the field.
+
+Note that the deny cases never reached the runtime. The router refused them before acquiring a
+token or opening a session, which is the property Azure RBAC cannot supply here — the runtime
+only ever sees the router's managed identity, never the end user's.
 
 ### Forwarding a turn
 

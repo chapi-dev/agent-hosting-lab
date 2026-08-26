@@ -72,8 +72,12 @@ Two gaps, both real:
 
 1. **Authorization-aware routing.** Deciding *which* agent a user may reach, based on their
    groups, roles or attributes, before any model sees the request. The hosted runtime executes
-   an agent; it does not decide entitlement to one. `ENTITLEMENTS` in `src/selfhosted/router.py`
-   is fifteen lines and belongs in code you own and audit.
+   an agent; it does not decide entitlement to one, and neither does Azure RBAC in this shape —
+   the router calls the runtime with its own managed identity, so the platform sees one principal
+   regardless of which end user started the request. `ENTITLEMENTS` in `src/selfhosted/router.py`
+   is fifteen lines and belongs in code you own and audit. Measured 4/4 against the deployment
+   (`experiments/07_authorization_routing.py`), including the case that matters most: a caller
+   presenting no groups is refused a restricted agent.
 2. **Private network egress.** If a tool must call an on-premises system, something inside your
    network has to make that call.
 

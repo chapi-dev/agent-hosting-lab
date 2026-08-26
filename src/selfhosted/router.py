@@ -48,16 +48,25 @@ _state: dict = {}
 
 # Intent -> hosted agent. One entry today; the point is that adding the second
 # is a dictionary entry and a deployment, not an architecture change.
+#
+# Both names resolve to the same deployed hosted agent, because the lab has one.
+# They are separate entries so the authorization path below has something real
+# to allow and something real to deny.
 ROUTES = {
     "trip": "trip-planner",
+    "corporate-travel": "trip-planner-corporate",
 }
 
 # Which groups may reach which agent. Authorization lives here, in code you own,
 # evaluated before the request ever reaches a runtime. This is exactly the
 # "authorization-aware routing" requirement that pure hosted-only designs
 # struggle with, and exactly why the hybrid shape wins.
+#
+# "*" means any caller. A named group means exactly that group, and nothing
+# else - including a caller who supplies no groups at all.
 ENTITLEMENTS = {
     "trip-planner": {"*"},
+    "trip-planner-corporate": {"travel-admin"},
 }
 
 
@@ -69,8 +78,8 @@ def classify(message: str) -> str:
     quality, and a deterministic classifier keeps the experiments repeatable.
     """
     lowered = message.lower()
-    if any(word in lowered for word in ("trip", "travel", "itinerary", "city", "visit")):
-        return "trip"
+    if any(word in lowered for word in ("corporate", "business travel", "expense policy")):
+        return "corporate-travel"
     return "trip"
 
 

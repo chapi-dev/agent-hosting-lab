@@ -313,8 +313,20 @@ The router surfaces the upstream body (truncated). Common causes:
 
 ### 403 `not entitled to <agent>`
 
-`ENTITLEMENTS` rejected the caller's groups. In the lab, `groups` defaults to `{"*"}` when empty.
-In production it must come from a validated token.
+`ENTITLEMENTS` rejected the caller's groups. Two things to check, in order.
+
+First, whether the caller sent any groups at all. An empty `groups` list is substituted with
+`{"*"}`, which matches an agent entitled to `"*"` but **not** an agent that requires a named
+group — so a restricted agent refuses a caller who simply omitted the field. That is deliberate:
+an unstated entitlement is not a granted one.
+
+Second, whether the intent classifier picked the agent you expected. The 403 names the agent it
+refused, and that name is the classifier's output, not the caller's request. A message routed to
+a restricted agent by accident produces a 403 that looks like an entitlement bug and is really a
+routing one. `experiments/07_authorization_routing.py` prints both the intent and the agent for
+each case, which is usually the fastest way to tell the two apart.
+
+In production `groups` must come from a validated token, not the request body.
 
 ### `/prewarm` returns 502
 

@@ -3,7 +3,7 @@
     Runs every experiment against the deployed lab.
 
 .DESCRIPTION
-    Sources .env.lab, then runs the six experiments in order. Results are
+    Sources .env.lab, then runs the seven experiments in order. Results are
     written to experiments/results/ as timestamped JSON - those files are the
     evidence behind every number in docs/ and README.md.
 
@@ -13,6 +13,7 @@
       04  pre-warm            does priming hide the hosted cold start?
       05  session pre-create  body field vs header for attaching a session
       06  session isolation   what actually keeps one user out of another's state?
+      07  authorization       can the router deny an agent the caller may not reach?
 
     Experiment 3 is static analysis and needs no deployment. The others call
     the live endpoints.
@@ -59,6 +60,7 @@ $experiments = @(
     @{ Id = "04"; Script = "experiments/04_prewarm.py";          Args = @("--rounds", $Rounds) }
     @{ Id = "05"; Script = "experiments/05_session_precreate.py"; Args = @("--rounds", $Rounds) }
     @{ Id = "06"; Script = "experiments/06_session_isolation.py"; Args = @() }
+    @{ Id = "07"; Script = "experiments/07_authorization_routing.py"; Args = @() }
 )
 
 $failed = @()

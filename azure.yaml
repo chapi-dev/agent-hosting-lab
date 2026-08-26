@@ -4,7 +4,11 @@ name: agent-hosting-lab
 services:
     aghl-project:
         host: azure.ai.project
-        endpoint: https://aghl-foundry-nphhsfaf75l2a.services.ai.azure.com/api/projects/aghl-project
+        # Written by `azd ai agent init` against the project created by
+        # scripts/deploy.ps1. The value below is a placeholder: replace it with
+        # your own project endpoint, or let `azd ai agent init` regenerate this
+        # file. See runbooks/01-deploy-hosted-agent.md, Step 2.
+        endpoint: https://<your-foundry-resource>.services.ai.azure.com/api/projects/<your-project>
     trip-planner:
         project: ./src/hosted
         host: azure.ai.agent

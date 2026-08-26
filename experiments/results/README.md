@@ -18,6 +18,20 @@ run each documented figure comes from, and why that one.
 | Pre-warm: hosted 69.3%, hybrid 70.7%, controls ±10% | `04_prewarm_20260826T042647Z.json` | 8 rounds — the smallest n at which the self-hosted controls settle |
 | Session pre-create: body 100% / 3174 ms, header 0% / 9458 ms | `05_session_precreate_20260826T032820Z.json` | Largest sample (4 rounds); reproduced at 3 rounds in the `T041352Z` run |
 | Session isolation: id alone reads the sandbox; router returns 403 | `06_session_isolation_20260826T051040Z.json` | Single run — a categorical result, not a measurement (see below) |
+| Authorization routing: 4/4 decisions, deny before the runtime is called | `07_authorization_routing_20260826T141209Z.json` | Single run — categorical, like experiment 6 |
+
+### A note on experiment 7
+
+Added after the rest, because reviewing the router turned up a gap in our own evidence rather
+than in the code. The entitlement check was real and correct, but every deployed agent was
+entitled to `*`, so the deny branch had never once executed against a live deployment. A
+control that has never denied anything is an assertion, not a control.
+
+Adding a second restricted route made both branches reachable, and the deny path was then
+measured rather than assumed. The case worth keeping is the last one: a caller supplying no
+groups is refused a restricted agent. Absence of a claim is not the same as a granted claim,
+and treating the two alike is how an entitlement check quietly passes for everyone who omits
+the field.
 
 ### A note on experiment 6
 
@@ -84,7 +98,7 @@ the run where the controls are trustworthy, not the one with the friendliest hea
 ## Regenerating
 
 ```powershell
-./scripts/run-experiments.ps1              # all six, 4 rounds
+./scripts/run-experiments.ps1              # all seven, 4 rounds
 ./scripts/run-experiments.ps1 -Only 04 -Rounds 8
 ```
 

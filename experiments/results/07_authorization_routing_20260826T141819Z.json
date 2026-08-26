@@ -1,0 +1,65 @@
+{
+  "experiment": "authorization_routing",
+  "timestamp": "20260826T141819Z",
+  "target": "https://aghl-hybrid-router.grayflower-5c407cf2.swedencentral.azurecontainerapps.io",
+  "cases": [
+    {
+      "label": "ordinary trip, no groups",
+      "message": "Plan a trip to Rome",
+      "groups": [],
+      "why": "trip-planner is entitled to '*', so any caller may reach it.",
+      "expected_status": 200,
+      "actual_status": 200,
+      "expected_agent": "trip-planner",
+      "actual_agent": "trip-planner",
+      "intent": "trip",
+      "detail": null,
+      "passed": true
+    },
+    {
+      "label": "corporate travel, entitled group",
+      "message": "Book corporate travel to Berlin",
+      "groups": [
+        "travel-admin"
+      ],
+      "why": "caller holds the one group the restricted agent requires.",
+      "expected_status": 200,
+      "actual_status": 200,
+      "expected_agent": "trip-planner-corporate",
+      "actual_agent": "trip-planner-corporate",
+      "intent": "corporate-travel",
+      "detail": null,
+      "passed": true
+    },
+    {
+      "label": "corporate travel, wrong group",
+      "message": "Book corporate travel to Berlin",
+      "groups": [
+        "engineering"
+      ],
+      "why": "holding some group is not holding the required group.",
+      "expected_status": 403,
+      "actual_status": 403,
+      "expected_agent": null,
+      "actual_agent": null,
+      "intent": null,
+      "detail": "not entitled to trip-planner-corporate",
+      "passed": true
+    },
+    {
+      "label": "corporate travel, no groups",
+      "message": "Book corporate travel to Berlin",
+      "groups": [],
+      "why": "an unstated entitlement is not a granted entitlement.",
+      "expected_status": 403,
+      "actual_status": 403,
+      "expected_agent": null,
+      "actual_agent": null,
+      "intent": null,
+      "detail": "not entitled to trip-planner-corporate",
+      "passed": true
+    }
+  ],
+  "passed": 4,
+  "total": 4
+}
