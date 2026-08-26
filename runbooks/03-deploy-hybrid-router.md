@@ -95,7 +95,7 @@ nothing, so every replica is interchangeable.
 > alongside `previous_response_id`, so on turn one it is ignored and the runtime allocates a
 > fresh sandbox. Measured: body 4/4 reattached at 3174 ms, header 0/4 at 9458 ms.
 
-### Session handles — do not skip this
+### Why the router issues session handles
 
 Notice that the client never sees `agent_session_id`; it sees a **handle**. That is not
 decoration, and it is the one piece of security work the hybrid pattern adds.

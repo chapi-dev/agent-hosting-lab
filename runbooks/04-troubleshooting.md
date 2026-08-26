@@ -39,22 +39,31 @@ The three causes seen in this lab, all import-time crashes:
 
 | Log line | Cause | Fix |
 |---|---|---|
-| `KeyError: 'PROJECT_ENDPOINT'` | env var not injected | declare it in `azure.yaml` under `env:` |
+| `KeyError` on an endpoint variable | reading a name the platform does not set | read `FOUNDRY_PROJECT_ENDPOINT` |
 | `response_handler must take exactly three positional parameters` | wrong signature | `async def handle(request, context, cancellation_signal)` |
 | `ModuleNotFoundError` | dependency missing from the deployed directory | everything imported must live next to `main.py` |
 
-### `KeyError: 'PROJECT_ENDPOINT'` specifically
+### `KeyError` on the project endpoint specifically
 
-The platform injects `APPLICATIONINSIGHTS_CONNECTION_STRING`. It does **not** inject your
-project endpoint. Add to `azure.yaml`:
+The platform does inject the project endpoint — under the reserved name
+`FOUNDRY_PROJECT_ENDPOINT`. A `KeyError` here means your code is reading a different name, not
+that the value is missing. Read the injected one:
 
-```yaml
-        env:
-            AZURE_AI_PROJECT_ENDPOINT: https://<account>.services.ai.azure.com/api/projects/<project>
-            MODEL_DEPLOYMENT_NAME: <deployment>
+```python
+endpoint = os.environ["FOUNDRY_PROJECT_ENDPOINT"]
 ```
 
-**Telemetry is injected. Configuration is yours.**
+To see everything the platform actually set, list the reserved prefixes from inside the agent:
+
+```python
+sorted(k for k in os.environ if k.startswith(("FOUNDRY_", "AGENT_")))
+```
+
+Observed on a deployed agent: `FOUNDRY_PROJECT_ENDPOINT`, `FOUNDRY_PROJECT_ARM_ID`,
+`FOUNDRY_AGENT_ID`, `FOUNDRY_AGENT_NAME`, `FOUNDRY_AGENT_VERSION`, `FOUNDRY_AGENT_SESSION_ID`,
+`FOUNDRY_AGENT_TENANT_ID`, `FOUNDRY_AGENT_TOOLSET_ENDPOINT`, plus identity client ids.
+
+**Check the reserved prefixes before adding a variable of your own.**
 
 ### `TypeError: 'coroutine' object is not iterable`
 

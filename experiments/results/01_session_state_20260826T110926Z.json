@@ -1,0 +1,186 @@
+{
+  "experiment": "session_state",
+  "utc": "20260826T110926Z",
+  "results": [
+    {
+      "target": "selfhosted-naive",
+      "kind": "selfhosted",
+      "session_id": "exp1-b1170dc3b6",
+      "transcript": [
+        {
+          "turn": "Add Paris to my trip",
+          "reply": "Added Paris.",
+          "replica": "aghl-selfhosted-naive--0000004-584dfb976f-tzsxw",
+          "state_backend": "disk",
+          "latency_ms": 4333
+        },
+        {
+          "turn": "Add Rome",
+          "reply": "Added Rome.",
+          "replica": "aghl-selfhosted-naive--0000004-584dfb976f-894bt",
+          "state_backend": "disk",
+          "latency_ms": 2951
+        },
+        {
+          "turn": "What is in my trip?",
+          "reply": "Your trip currently includes: Paris.",
+          "replica": "aghl-selfhosted-naive--0000004-584dfb976f-tzsxw",
+          "state_backend": "disk",
+          "latency_ms": 5327
+        }
+      ],
+      "verdict": {
+        "passed": false,
+        "found": [
+          "paris"
+        ],
+        "missing": [
+          "rome"
+        ],
+        "distinct_replicas": 2,
+        "replicas": [
+          "aghl-selfhosted-naive--0000004-584dfb976f-894bt",
+          "aghl-selfhosted-naive--0000004-584dfb976f-tzsxw"
+        ],
+        "mean_latency_ms": 4204
+      }
+    },
+    {
+      "target": "selfhosted-hardened",
+      "kind": "selfhosted",
+      "session_id": "exp1-bcaf8f7eb9",
+      "transcript": [
+        {
+          "turn": "Add Paris to my trip",
+          "reply": "Added Paris to your trip.",
+          "replica": "aghl-selfhosted-hardened--0000004-5f6c86775-vjr8d",
+          "state_backend": "cosmos",
+          "latency_ms": 2635
+        },
+        {
+          "turn": "Add Rome",
+          "reply": "Added Rome.",
+          "replica": "aghl-selfhosted-hardened--0000004-5f6c86775-q76wq",
+          "state_backend": "cosmos",
+          "latency_ms": 2857
+        },
+        {
+          "turn": "What is in my trip?",
+          "reply": "Your trip is: Paris -> Rome",
+          "replica": "aghl-selfhosted-hardened--0000004-5f6c86775-vjr8d",
+          "state_backend": "cosmos",
+          "latency_ms": 1875
+        }
+      ],
+      "verdict": {
+        "passed": true,
+        "found": [
+          "paris",
+          "rome"
+        ],
+        "missing": [],
+        "distinct_replicas": 2,
+        "replicas": [
+          "aghl-selfhosted-hardened--0000004-5f6c86775-q76wq",
+          "aghl-selfhosted-hardened--0000004-5f6c86775-vjr8d"
+        ],
+        "mean_latency_ms": 2456
+      }
+    },
+    {
+      "target": "hosted-agent",
+      "kind": "hosted",
+      "session_id": "exp1-b7e691d091",
+      "transcript": [
+        {
+          "turn": "Add Paris to my trip",
+          "reply": "Paris has been added to your trip.",
+          "replica": "n/a (platform-managed session)",
+          "state_backend": "hosted-session ($HOME)",
+          "response_id": "caresp_4780b4ad508b3a1f00vXCIEgxLJRK424iNCh1HHvCkYRZqktE1",
+          "agent_session_id": "297b25d7f3b14b179701e45152904f1b25e7085f5229333ffff6241d1a37509",
+          "latency_ms": 11156
+        },
+        {
+          "turn": "Add Rome",
+          "reply": "Added Rome.",
+          "replica": "n/a (platform-managed session)",
+          "state_backend": "hosted-session ($HOME)",
+          "response_id": "caresp_4780b4ad508b3a1f00gdDuUhLKB3ilybciuB3sqK4aMPlcOjiR",
+          "agent_session_id": "297b25d7f3b14b179701e45152904f1b25e7085f5229333ffff6241d1a37509",
+          "latency_ms": 11901
+        },
+        {
+          "turn": "What is in my trip?",
+          "reply": "Your trip is: Paris -> Rome.",
+          "replica": "n/a (platform-managed session)",
+          "state_backend": "hosted-session ($HOME)",
+          "response_id": "caresp_4780b4ad508b3a1f00EUs94NILrLDovfW34MmYwwPE7GsUunzg",
+          "agent_session_id": "297b25d7f3b14b179701e45152904f1b25e7085f5229333ffff6241d1a37509",
+          "latency_ms": 2648
+        }
+      ],
+      "verdict": {
+        "passed": true,
+        "found": [
+          "paris",
+          "rome"
+        ],
+        "missing": [],
+        "distinct_replicas": 1,
+        "replicas": [
+          "n/a (platform-managed session)"
+        ],
+        "mean_latency_ms": 8568
+      }
+    },
+    {
+      "target": "hybrid-router",
+      "kind": "router",
+      "session_id": "exp1-ca0cdf0bad",
+      "transcript": [
+        {
+          "turn": "Add Paris to my trip",
+          "reply": "Added Paris.",
+          "replica": "aghl-hybrid-router--0000006-79d58b569b-rtsj8",
+          "state_backend": "hosted-session",
+          "routed_to": "trip-planner",
+          "session_handle_prefix": "462cdb72bc46",
+          "latency_ms": 10419
+        },
+        {
+          "turn": "Add Rome",
+          "reply": "Added Rome.",
+          "replica": "aghl-hybrid-router--0000006-79d58b569b-f4g6f",
+          "state_backend": "hosted-session",
+          "routed_to": "trip-planner",
+          "session_handle_prefix": "462cdb72bc46",
+          "latency_ms": 3137
+        },
+        {
+          "turn": "What is in my trip?",
+          "reply": "Your trip includes: Paris -> Rome",
+          "replica": "aghl-hybrid-router--0000006-79d58b569b-rtsj8",
+          "state_backend": "hosted-session",
+          "routed_to": "trip-planner",
+          "session_handle_prefix": "462cdb72bc46",
+          "latency_ms": 5258
+        }
+      ],
+      "verdict": {
+        "passed": true,
+        "found": [
+          "paris",
+          "rome"
+        ],
+        "missing": [],
+        "distinct_replicas": 2,
+        "replicas": [
+          "aghl-hybrid-router--0000006-79d58b569b-f4g6f",
+          "aghl-hybrid-router--0000006-79d58b569b-rtsj8"
+        ],
+        "mean_latency_ms": 6271
+      }
+    }
+  ]
+}

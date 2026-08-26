@@ -1,7 +1,7 @@
 # Runbook 1 — Deploy a Foundry Hosted Agent
 
-From nothing to a working hosted agent. Every command here was run for real; every error in the
-"traps" section actually happened while building this lab.
+From nothing to a working hosted agent. Every command here was run for real, and the
+"How the hosted contract works" section explains the behaviour behind each requirement.
 
 **Time:** ~20 minutes, most of it waiting for the first deploy.
 
@@ -74,7 +74,8 @@ azure-ai-agentserver-responses
 azure-identity
 ```
 
-> **Use `agent-framework-core`, not `agent-framework`.** See Trap 1.
+> **Use `agent-framework-core`, not `agent-framework`.** The metapackage cannot resolve in the
+> hosted build environment — see [Dependencies resolve in Azure](#dependencies-resolve-in-azure-not-on-your-machine).
 
 Anything the agent imports must sit next to `main.py`. This lab keeps the shared agent in
 `src/agent_core/` and copies it in before deploying — see `scripts/prepare-hosted.ps1`.
@@ -93,10 +94,10 @@ azd ai agent init `
 
 This writes `azure.yaml`.
 
-## Step 3 — Add the configuration the platform does not inject
+## Step 3 — Declare your own configuration
 
-**This step is not optional and `init` does not do it for you.** Open `azure.yaml` and add an
-`env:` block to the agent service:
+`init` writes a skeleton. Open `azure.yaml` and add the settings the platform cannot know about
+— your model deployment name and the container size:
 
 ```yaml
 services:
@@ -111,7 +112,6 @@ services:
             entryPoint: main.py
             runtime: python_3_13
         env:
-            AZURE_AI_PROJECT_ENDPOINT: https://<account>.services.ai.azure.com/api/projects/<project>
             MODEL_DEPLOYMENT_NAME: gpt-5.4-mini
         container:
             resources:
@@ -123,8 +123,14 @@ services:
               version: 2.0.0
 ```
 
-`APPLICATIONINSIGHTS_CONNECTION_STRING` **is** injected. Your project endpoint is **not**. See
-Trap 2 — this is the single most expensive assumption in this runbook.
+Two notes on this block:
+
+- **Do not add the project endpoint here.** The platform injects it as
+  `FOUNDRY_PROJECT_ENDPOINT`; read that name from your code. See
+  [What the platform gives your container](#what-the-platform-gives-your-container).
+- **`container.resources` accepts `cpu` from `"0.25"` to `"4.0"` and `memory` from `0.5Gi` to
+  `8.0Gi`.** It is optional, but an unstated default is a default that can change under you.
+  If your agent needs more than 4 vCPU or 8 GiB, hosted is not the right model for it.
 
 ## Step 4 — Deploy
 
@@ -201,7 +207,8 @@ r2 = httpx.post(ENDPOINT, headers=headers, json={
 ```
 
 > `agent_session_id` goes in the **body**. The `x-agent-session-id` header is only honoured
-> alongside `previous_response_id` and is ignored on turn one. See Trap 6.
+> alongside `previous_response_id` and is ignored on turn one — see
+> [How sessions carry state](#how-sessions-carry-state).
 
 ## Step 7 — Pre-create sessions (do this in production)
 
@@ -258,63 +265,105 @@ shift traffic in your router — which is one more reason to have a router.
 
 ---
 
-## The six traps
+## How the hosted contract works
 
-Every one of these cost real time while building this lab. They are listed in the order they
-appear.
+The hosted runtime asks little of your code, but what it asks is exact. This section explains
+each part of the contract, what the platform does on your behalf, and how a mismatch shows up
+when you get one wrong.
 
-### Trap 1 — `ResolutionImpossible` during dependency resolution
+### Dependencies resolve in Azure, not on your machine
+
+With `dependency_resolution: remote_build`, your `requirements.txt` is resolved inside the
+hosted build environment. That environment is not your laptop: a dependency tree that installs
+locally can still fail there.
+
+The `agent-framework` metapackage is the common case. It pulls in `agent-framework-hyperlight`,
+which cannot resolve during a remote build:
 
 ```
 ERROR: Cannot install agent-framework ... ResolutionImpossible
 (13 versions of agent-framework-hyperlight)
 ```
 
-**Cause:** the `agent-framework` metapackage pulls in `agent-framework-hyperlight`, which cannot
-resolve in the hosted build environment.
-
-**Fix:** depend on `agent-framework-core` instead.
+Depend on the core package instead, and add the integrations you actually use:
 
 ```diff
 - agent-framework
 + agent-framework-core
 ```
 
-### Trap 2 — HTTP 424 `session_not_ready` with `KeyError: 'PROJECT_ENDPOINT'`
+The practical rule: keep hosted dependencies narrow. Every extra package is another chance for
+the remote resolver to disagree with your machine.
 
-**Cause:** the platform injects `APPLICATIONINSIGHTS_CONNECTION_STRING`, so it is natural to
-assume it injects the project endpoint too. It does not. The agent crashes at import, the
-session never reaches readiness, and the caller sees a 424 that says nothing about environment
-variables.
+### What the platform gives your container
 
-**Fix:** declare it in `azure.yaml` under `env:` (Step 3).
+The platform injects a substantial environment under the reserved `FOUNDRY_` and `AGENT_`
+prefixes. This lab asked the deployed agent to report its own environment (the `describe_runtime`
+tool in `src/agent_core/agent.py`), so the following is observed from version 9, not documented
+from memory:
 
-**Rule of thumb:** telemetry is injected, configuration is yours.
+```
+FOUNDRY_PROJECT_ENDPOINT          FOUNDRY_AGENT_ID
+FOUNDRY_PROJECT_ARM_ID            FOUNDRY_AGENT_NAME
+FOUNDRY_HOSTING_ENVIRONMENT       FOUNDRY_AGENT_VERSION
+FOUNDRY_AGENT_SESSION_ID          FOUNDRY_AGENT_TENANT_ID
+FOUNDRY_AGENT_TOOLSET_ENDPOINT    FOUNDRY_AGENT_TOOLSET_FEATURES
+FOUNDRY_AGENT_INSTANCE_CLIENT_ID  FOUNDRY_AGENT_BLUEPRINT_CLIENT_ID
+FOUNDRY_AGENT_DEFAULT_INSTANCE_CLIENT_ID
+FOUNDRY_AGENT365_TRACING_ENABLED
 
-### Trap 3 — `response_handler must take exactly three positional parameters`
+APPLICATIONINSIGHTS_CONNECTION_STRING   IDENTITY_ENDPOINT   HOME=/home/session
+```
+
+Three things worth reading off that list:
+
+- **The project endpoint is injected.** Read `FOUNDRY_PROJECT_ENDPOINT` rather than declaring
+  your own copy. The reference documentation is explicit that redeclaring it in `env:` is
+  redundant and risks shadowing the platform value.
+- **The agent knows its own session.** `FOUNDRY_AGENT_SESSION_ID` identifies the sandbox serving
+  the current request, which is why keying state by a constant is correct (see
+  [How sessions carry state](#how-sessions-carry-state)).
+- **Identity arrives without configuration.** `IDENTITY_ENDPOINT` is present while
+  `AZURE_CLIENT_ID` and `MSI_ENDPOINT` are absent, so `DefaultAzureCredential()` works with no
+  secrets and nothing to configure.
+
+If your code reads a name the platform does not set, it raises `KeyError` at import, the session
+never reaches readiness, and the caller sees an HTTP 424 `session_not_ready` that says nothing
+about environment variables. That failure means *you are reading the wrong name*, not that the
+value is missing — check the reserved prefixes before adding your own variable.
+
+> This lab learned that the slow way. Earlier versions of this runbook concluded "telemetry is
+> injected, configuration is yours" after a 424 on `KeyError: 'PROJECT_ENDPOINT'`. The endpoint
+> was there all along under `FOUNDRY_PROJECT_ENDPOINT`. The `env:` block in Step 3 keeps working
+> because `AZURE_AI_PROJECT_ENDPOINT` is not a reserved name, but it is a copy you do not need.
+
+### The response handler signature
+
+The runtime calls your handler with exactly three positional parameters, in this order:
+
+```python
+async def handle(request, context, cancellation_signal):
+```
+
+Anything else is rejected as the module is imported, so it also surfaces as a 424 rather than as
+a clear error at call time:
 
 ```
 TypeError: response_handler must take exactly three positional parameters
 (request, context, cancellation_signal)
 ```
 
-**Cause:** wrong handler signature. This fails at import time, so it also surfaces as a 424.
+### The runtime is asynchronous end to end
 
-**Fix:**
+`context.get_input_text()` returns a coroutine in the deployed runtime, while some local builds
+return a plain value. Passing an un-awaited coroutine onward fails deep inside telemetry, which
+points at framework internals rather than at your line:
 
-```python
-async def handle(request, context, cancellation_signal):
+```
+TypeError: 'coroutine' object is not iterable
 ```
 
-Exactly those three, in exactly that order.
-
-### Trap 4 — `'coroutine' object is not iterable`
-
-**Cause:** `context.get_input_text()` is a coroutine in the deployed runtime and a plain method
-in some local builds. Passing the un-awaited coroutine to the agent fails deep inside telemetry,
-pointing at framework internals rather than at your line.
-
-**Fix:** await conditionally, so local and deployed take the same path.
+Awaiting conditionally keeps local and deployed on the same path:
 
 ```python
 value = context.get_input_text()
@@ -322,47 +371,57 @@ if inspect.isawaitable(value):
     value = await value
 ```
 
-### Trap 5 — `'async for' requires an object with __aiter__ method, got str`
+### The runtime streams what you return
 
-**Cause:** the handler returned a bare string. The runtime streams whatever it gets back.
+The runtime iterates over your return value to stream it, so it expects a response object rather
+than a string. Returning a bare `str` produces:
 
-**Fix:**
+```
+TypeError: 'async for' requires an object with __aiter__ method, got str
+```
+
+Wrap the text:
 
 ```python
 return TextResponse(context, request, text=result.text.strip())
 ```
 
-### Trap 6 — state disappears between turns
+### How sessions carry state
 
-Two distinct causes, both silent, both producing confident wrong answers.
+Two behaviours decide whether multi-turn conversations work, and both fail silently — the
+request succeeds and the answer is confidently wrong.
 
-**6a. Keying state by `context.conversation_chain_id`.** It is not stable across turns, so every
-turn reads and writes a different key.
+**Key state by a constant, not by a conversation id.** `context.conversation_chain_id` is not
+stable across turns, so every turn reads and writes a different key:
 
 ```python
-agent = build_agent(STORE, context.conversation_chain_id)   # WRONG
+agent = build_agent(STORE, context.conversation_chain_id)   # changes every turn
 agent = build_agent(STORE, "session")                       # correct
 ```
 
-A constant looks careless and is right: the sandbox is already private per session, so there is
+A constant looks careless and is right: the sandbox is already private to the session — the
+runtime even tells the agent which one it is via `FOUNDRY_AGENT_SESSION_ID` — so there is
 nothing left to key by.
 
-**6b. Attaching the session with the header instead of the body field.** Measured over 4 rounds
-against pre-created sessions:
+**Attach the session in the body, not the header.** Measured over four rounds against
+pre-created sessions:
 
 | Mechanism | Reattached | First turn |
 |---|---|---|
 | body `agent_session_id` | 4/4 | 3174 ms |
 | header `x-agent-session-id` | 0/4 | 9458 ms |
 
-The header is only honoured alongside `previous_response_id`. Put the id in the body.
+The header is only honoured alongside `previous_response_id`, which by definition does not exist
+on turn one — the exact turn pre-warming targets. Put the id in the body.
 
 ---
 
 ## Checklist
 
 - [ ] `agent-framework-core`, not `agent-framework`
-- [ ] `AZURE_AI_PROJECT_ENDPOINT` and `MODEL_DEPLOYMENT_NAME` declared in `azure.yaml`
+- [ ] Project endpoint read from `FOUNDRY_PROJECT_ENDPOINT`, not redeclared under a reserved name
+- [ ] `MODEL_DEPLOYMENT_NAME` declared in `azure.yaml`
+- [ ] `container.resources` set explicitly (`cpu` "0.25"–"4.0", `memory` 0.5Gi–8.0Gi)
 - [ ] Handler signature is `(request, context, cancellation_signal)`
 - [ ] `get_input_text()` awaited conditionally
 - [ ] Handler returns `TextResponse`, not `str`

@@ -16,16 +16,14 @@ services:
             entryPoint: main.py
             runtime: python_3_13
         env:
-            # Correcting an assumption this lab got wrong on the first deploy.
+            # The project endpoint is NOT declared here on purpose.
             #
-            # The docs say the platform injects APPLICATIONINSIGHTS_CONNECTION_STRING,
-            # and it does. It is easy to assume the project endpoint arrives the
-            # same way. It does not: the first deploy crashed on startup with
-            # KeyError: 'PROJECT_ENDPOINT' and the session never became ready,
-            # surfacing to the caller as HTTP 424 session_not_ready.
+            # The platform injects it as FOUNDRY_PROJECT_ENDPOINT, along with the
+            # rest of the reserved FOUNDRY_/AGENT_ environment. Declaring a copy
+            # is redundant and can shadow the platform value, so agent_core reads
+            # the injected name directly.
             #
-            # Telemetry is injected. Configuration is yours. Declare it here.
-            AZURE_AI_PROJECT_ENDPOINT: https://aghl-foundry-nphhsfaf75l2a.services.ai.azure.com/api/projects/aghl-project
+            # Only settings the platform cannot know about belong here.
             MODEL_DEPLOYMENT_NAME: gpt-5.4-mini
         container:
             resources:

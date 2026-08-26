@@ -99,6 +99,7 @@ def build_tools(store: ItineraryStore, session_id: str) -> list:
         interesting = [
             "APPLICATIONINSIGHTS_CONNECTION_STRING",
             "AZURE_AI_PROJECT_ENDPOINT",
+            "PROJECT_ENDPOINT",
             "AZURE_CLIENT_ID",
             "AZURE_TENANT_ID",
             "AZURE_FEDERATED_TOKEN_FILE",
@@ -110,9 +111,17 @@ def build_tools(store: ItineraryStore, session_id: str) -> list:
         ]
         present = [k for k in interesting if _os.environ.get(k)]
         absent = [k for k in interesting if not _os.environ.get(k)]
+
+        # The platform reserves the FOUNDRY_ and AGENT_ prefixes. Listing the
+        # names it actually sets is the only way to tell an absent value from
+        # one that arrived under a name we were not looking for.
+        reserved = sorted(
+            k for k in _os.environ if k.startswith(("FOUNDRY_", "AGENT_"))
+        )
         return (
             f"present={','.join(present) or 'none'}; "
             f"absent={','.join(absent) or 'none'}; "
+            f"reserved_prefix_names={','.join(reserved) or 'none'}; "
             f"home={_os.path.expanduser('~')}"
         )
 
@@ -122,12 +131,20 @@ def build_tools(store: ItineraryStore, session_id: str) -> list:
 def build_chat_client() -> FoundryChatClient:
     """Creates the chat client from environment variables.
 
-    Both hosting models read the same variables, but they are set differently.
-    The self-hosted deployment sets them in Bicep; the hosted deployment sets
-    them in azure.yaml. Neither is automatic - see the note in azure.yaml about
-    the failed first deploy that proved it.
+    The two hosting models supply the endpoint differently, which is itself a
+    difference worth knowing about:
+
+    - Hosted: the platform injects FOUNDRY_PROJECT_ENDPOINT. Nothing to declare.
+    - Self-hosted: you set AZURE_AI_PROJECT_ENDPOINT yourself, in Bicep.
+
+    Preferring the platform value keeps the hosted path free of configuration
+    that can drift away from the project it is deployed into.
     """
-    endpoint = os.environ.get("AZURE_AI_PROJECT_ENDPOINT") or os.environ["PROJECT_ENDPOINT"]
+    endpoint = (
+        os.environ.get("FOUNDRY_PROJECT_ENDPOINT")
+        or os.environ.get("AZURE_AI_PROJECT_ENDPOINT")
+        or os.environ["PROJECT_ENDPOINT"]
+    )
     return FoundryChatClient(
         project_endpoint=endpoint,
         model=os.environ.get("MODEL_DEPLOYMENT_NAME", "gpt-5.4-mini"),

@@ -92,7 +92,7 @@ Then send the user's first real message with that id **in the request body**.
 **The first turn drops from ~9.5 s to ~3.2 s** — a 66% reduction — and the 6.5 s of provisioning
 happens while the user is still reading the greeting.
 
-The second row is the trap. Passing the pre-created id in the `x-agent-session-id` header
+The second row is the one to understand. Passing the pre-created id in the `x-agent-session-id` header
 reattached **zero times out of four**. The header is only honoured alongside
 `previous_response_id`, which does not exist on turn one — the exact turn pre-warming targets.
 The request succeeds, the answer is correct, and the pre-created session is silently discarded.

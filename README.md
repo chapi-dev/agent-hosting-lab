@@ -106,7 +106,7 @@ Provision the sandbox when the chat window opens, then send the user's first rea
 
 **9.5 s becomes 3.2 s.** The 6.5 s of provisioning happens while the user reads the greeting.
 
-The second row is the trap, and it is why this is a finding rather than a tip. Passing the
+The second row explains why this is a finding rather than a tip. Passing the
 pre-created id in the `x-agent-session-id` **header** reattached zero times out of four: the
 header is only honoured alongside `previous_response_id`, which by definition does not exist on
 turn one — the exact turn pre-warming targets. The request succeeds, the answer is correct, and
@@ -280,7 +280,7 @@ scripts/        deploy and prepare helpers
 
 ### Runbooks
 
-1. [Deploy a hosted agent](runbooks/01-deploy-hosted-agent.md) — including the five traps that cost this lab an evening
+1. [Deploy a hosted agent](runbooks/01-deploy-hosted-agent.md) — including how the hosted contract behaves and why
 2. [Deploy a self-hosted agent](runbooks/02-deploy-self-hosted-agent.md)
 3. [Deploy the hybrid router](runbooks/03-deploy-hybrid-router.md)
 4. [Troubleshooting](runbooks/04-troubleshooting.md) — every error this lab hit, with its cause

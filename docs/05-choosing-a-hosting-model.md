@@ -149,4 +149,4 @@ Things this lab did wrong, or nearly did, so you do not have to.
 | A stateful router | Reintroduces the state backend you just eliminated |
 | Choosing self-hosting on compute price | Compute is the smallest cost. Code, governance and incidents dominate |
 | Measuring cold start without pre-warming | Overstates the hosted penalty by ~70% |
-| Assuming the platform injects all config | It injects telemetry. It does not inject your project endpoint |
+| Declaring your own copy of the project endpoint | The platform injects `FOUNDRY_PROJECT_ENDPOINT`. A copy can shadow it and drift |
