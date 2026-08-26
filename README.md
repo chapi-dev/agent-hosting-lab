@@ -77,12 +77,21 @@ because the platform underneath changed. See [docs/02-state-and-sessions.md](doc
 | `hybrid-router` | **10004 ms** | 2413 ms | **+7592 ms** |
 
 This is the honest cost of hosted agents and the lab does not hide it. Starting a new session
-means the platform provisions a sandbox, and that takes roughly eight seconds. Self-hosted
+means the platform provisions a sandbox, and that takes seven to eight seconds. Self-hosted
 containers kept warm by minimum replicas do not pay it.
+
+We ran this three times, hours apart: the hosted penalty came out at +6840, +7818 and +6801 ms,
+while the self-hosted controls scattered between −379 and +380 ms. The effect is roughly twenty
+times the run-to-run noise, so the conclusion does not depend on which run you read.
 
 But note the second column. Once the session exists, the two models are within ~400 ms of each
 other. The penalty is **per session, not per turn** — and it is paid when the session is
 *created*, which need not be when the user sends their first message.
+
+One caveat that costs real money in production: "per session" only holds if your client echoes
+`agent_session_id` and `previous_response_id` back on every turn. Drop them and every turn opens
+a fresh sandbox — 9634 ms per turn instead of 2413 ms, with no error to tell you. We measured
+that by accident before fixing our own test harness.
 
 ### 3. Pre-creating the session removes two thirds of that penalty
 
