@@ -42,7 +42,7 @@ jobs:
           pip install -r src/selfhosted/requirements.txt
 
       - name: Lint
-        run: ruff check src experiments
+        run: ruff check src experiments scripts
 
       - name: Import the shared agent
         # Catches the mistake that costs the most time downstream: a syntax or
@@ -73,6 +73,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - name: Sync the shared agent into the hosted directory
         shell: pwsh
         run: ./scripts/prepare-hosted.ps1
@@ -80,18 +84,4 @@ jobs:
       - name: Verify nothing outside the deploy directory is imported
         # A hosted agent deploys a directory. Anything the entry point imports
         # must be inside it - there is no editable install and no PYTHONPATH.
-        # Importing from src/hosted alone proves the package is complete.
-        run: |
-          cd src/hosted
-          python -c "import ast,sys,pathlib
-missing = []
-for path in pathlib.Path('.').rglob('*.py'):
-    tree = ast.parse(path.read_text())
-    for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
-            root = node.module.split('.')[0]
-            if root == 'agent_core' and not pathlib.Path('agent_core').exists():
-                missing.append((str(path), node.module))
-if missing:
-    print('Missing local packages:', missing); sys.exit(1)
-print('hosted package is self-contained')"
+        run: python scripts/check_hosted_package.py
