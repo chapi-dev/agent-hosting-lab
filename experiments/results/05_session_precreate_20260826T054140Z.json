@@ -1,0 +1,88 @@
+{
+  "experiment": "session_precreate",
+  "utc": "20260826T054140Z",
+  "results": {
+    "body": {
+      "rounds": [
+        {
+          "attach": "body",
+          "create_ms": 6653,
+          "first_turn_ms": 3033,
+          "second_turn_ms": 2632,
+          "session_reused": true,
+          "state_kept": true
+        },
+        {
+          "attach": "body",
+          "create_ms": 5601,
+          "first_turn_ms": 7332,
+          "second_turn_ms": 2640,
+          "session_reused": true,
+          "state_kept": true
+        },
+        {
+          "attach": "body",
+          "create_ms": 5531,
+          "first_turn_ms": 3246,
+          "second_turn_ms": 3146,
+          "session_reused": true,
+          "state_kept": true
+        },
+        {
+          "attach": "body",
+          "create_ms": 5575,
+          "first_turn_ms": 3734,
+          "second_turn_ms": 3717,
+          "session_reused": true,
+          "state_kept": true
+        }
+      ],
+      "create_ms_median": 5588,
+      "first_turn_ms_median": 3490,
+      "second_turn_ms_median": 2893,
+      "session_reused_rate": 1.0,
+      "state_kept_rate": 1.0
+    },
+    "header": {
+      "rounds": [
+        {
+          "attach": "header",
+          "create_ms": 5699,
+          "first_turn_ms": 8898,
+          "second_turn_ms": 2358,
+          "session_reused": false,
+          "state_kept": true
+        },
+        {
+          "attach": "header",
+          "create_ms": 5017,
+          "first_turn_ms": 10618,
+          "second_turn_ms": 2343,
+          "session_reused": false,
+          "state_kept": true
+        },
+        {
+          "attach": "header",
+          "create_ms": 5795,
+          "first_turn_ms": 9778,
+          "second_turn_ms": 3867,
+          "session_reused": false,
+          "state_kept": true
+        },
+        {
+          "attach": "header",
+          "create_ms": 5441,
+          "first_turn_ms": 8795,
+          "second_turn_ms": 2820,
+          "session_reused": false,
+          "state_kept": true
+        }
+      ],
+      "create_ms_median": 5570,
+      "first_turn_ms_median": 9338,
+      "second_turn_ms_median": 2589,
+      "session_reused_rate": 0.0,
+      "state_kept_rate": 1.0
+    }
+  }
+}

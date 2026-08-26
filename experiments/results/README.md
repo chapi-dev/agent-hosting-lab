@@ -66,10 +66,12 @@ No reading of the data supports a different conclusion.
 |---|---|---|---|---|
 | `T032820Z` (4 rounds) | 4/4 | 3174 ms | 0/4 | 9458 ms |
 | `T041352Z` (3 rounds) | 3/3 | 3458 ms | 0/3 | 8776 ms |
+| `T054140Z` (4 rounds) | 4/4 | 3490 ms | 0/4 | 9338 ms |
 
-Seven attempts per mechanism, across two runs. The body field reattached every time; the header
-reattached never. This is the finding with the most direct impact on production latency, so it
-is the one we were most careful to repeat.
+Eleven attempts per mechanism, across three runs hours apart. The body field reattached every
+time; the header reattached never, and its first turn never dropped below 8.7 s. This is the
+finding with the most direct impact on production latency, so it is the one we were most
+careful to repeat.
 
 **Pre-warm** (`04_prewarm_*`) is quoted from the 8-round run for one reason: at 4 rounds the
 self-hosted controls are still noisy (−68.1% and −10.8% in `T052311Z`), which is what a control
