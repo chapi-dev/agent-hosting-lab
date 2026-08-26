@@ -1,6 +1,6 @@
 # 3. The cost of self-hosting
 
-The headline number is **9.6x**: self-hosting the same agent costs 9.6 times as much supporting
+The headline number is **9.94x**: self-hosting the same agent costs 9.94 times as much supporting
 code as hosting it. That number is measured, not estimated — `experiments/03_deployment_surface.py`
 counts effective lines (comments and blanks excluded) in the real files that were really deployed.
 
@@ -14,21 +14,38 @@ responsible for, and this lab found that out by accident.
 | | Lines | Files |
 |---|---|---|
 | **Shared agent logic** | **122** | `agent_core/agent.py` (30), `state.py` (79), `__init__.py` (13) |
-| **Self-hosted only** | **509** | `server.py` (84), `Dockerfile` (25), `requirements.txt` (9), `apps.bicep` (255), `network.bicep` (96), `environment-vnet.bicep` (40) |
+| **Self-hosted only** | **527** | `server.py` (84), `Dockerfile` (25), `requirements.txt` (9), `apps.bicep` (273), `network.bicep` (96), `environment-vnet.bicep` (40) |
 | **Hosted only** | **53** | `main.py` (20), `requirements.txt` (4), `azure.yaml` (29) |
 | Shared infrastructure | 222 | `main.bicep` — Foundry, model, observability, identity |
-| Hybrid router | 141 | `router.py` |
+| Hybrid router | 175 | `router.py` |
 
 `main.bicep` is attributed to *shared* deliberately. Both models need a Foundry project, a model
 deployment, Application Insights and a managed identity. Counting it against self-hosting would
 inflate the case, and the case does not need inflating.
 
-Ratios: self-hosted support code is **4.17x** the agent itself. Hosted support code is **0.43x**.
-The multiplier between the two is **9.6x**.
+Ratios: self-hosted support code is **4.32x** the agent itself. Hosted support code is **0.43x**.
+The multiplier between the two is **9.94x**.
 
-## What those 509 lines actually are
+### What the router's 175 lines include, and what that taught us
 
-It is tempting to read "509 lines of YAML and Bicep" as trivial. It is not, because each block
+The router started at 141 lines. It is 175 now, and the 34-line difference is worth naming
+because it was not a feature: it is the HMAC session-handle logic from
+[02, Finding 4](02-state-and-sessions.md#finding-4-the-session-id-is-the-isolation-boundary-and-that-changes-what-the-router-owes-you).
+
+We had to add it because putting a router in front of a hosted agent moves session
+authorization from the platform to you. The runtime separates users by their credentials; a
+router calls it with one managed identity for everybody, so the runtime can no longer tell your
+users apart and the router must do it.
+
+Thirty-four lines is cheap — it is 6% of what self-hosting costs, and it stays constant as you
+add agents. But it is not zero, and it did not appear on anyone's estimate. **That is the honest
+shape of the hybrid's price: small, unavoidable, and easy to forget until a security review
+finds it.** The line to budget for is not "the router", it is "the router *plus* the guarantees
+you just took ownership of".
+
+## What those 527 lines actually are
+
+It is tempting to read "527 lines of YAML and Bicep" as trivial. It is not, because each block
 encodes a decision that someone had to make correctly:
 
 - **`server.py` (84)** — request model, session extraction, agent construction per request,
@@ -38,7 +55,7 @@ encodes a decision that someone had to make correctly:
 - **`Dockerfile` (25)** — base image choice, layer ordering, dependency install, non-root user,
   port, entrypoint. This is also a standing patch obligation: every base image CVE is now yours.
 - **`requirements.txt` (9)** — pinned, and therefore something to keep pinned.
-- **`apps.bicep` (255)** — two container apps, ingress, scale rules, identity assignment, ACR
+- **`apps.bicep` (273)** — two container apps, ingress, scale rules, identity assignment, ACR
   pull role, environment variables, secrets, probes, resource limits.
 - **`network.bicep` (96)** — VNet, two subnets, private endpoint, private DNS zone, VNet link,
   DNS zone group.
@@ -152,7 +169,7 @@ invisible until they silently revert your deployment.
 
 ## Costs that never appear in a line count
 
-Neither the 509 lines nor the policy story captures these, and they are permanent:
+Neither the 527 lines nor the policy story captures these, and they are permanent:
 
 | Obligation | Self-hosted | Hosted |
 |---|---|---|
@@ -177,7 +194,7 @@ teams frequently choose on that basis.
 
 This lab suggests that comparison is measuring the wrong thing. The dominant costs are:
 
-1. Engineering time to build the 509 lines (days).
+1. Engineering time to build the 527 lines (days).
 2. Engineering time to satisfy governance (this lab: an evening, after three failed attempts, in
    a subscription with cooperative policies and no change-control board).
 3. The permanent maintenance obligations in the table above.

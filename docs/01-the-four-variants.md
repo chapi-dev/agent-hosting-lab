@@ -78,7 +78,7 @@ here. That is not an accident of the lab; it is the whole point, and
 
 `src/selfhosted/router.py` on Container Apps, in front of `hosted-agent`.
 
-141 lines. It classifies intent, checks entitlements, forwards to the hosted runtime, and
+175 lines. It classifies intent, checks entitlements, forwards to the hosted runtime, and
 returns both session handles to the caller. It holds **no session state**, which is why it
 scales to any number of replicas without a database — and why it passes the state experiment
 while being served by two different replicas across three turns.
@@ -114,7 +114,7 @@ team that already fixed it — and so the cost of the fix can be counted honestl
 | Foundry project | shared | shared | shared | shared |
 | State backend | disk (per replica) | Cosmos | sandbox `$HOME` | delegated |
 | Replicas | 2 | 2 | platform | 2 |
-| Code you own | 509 lines | 509 lines | 53 lines | 194 lines |
+| Code you own | 527 lines | 527 lines | 53 lines | 228 lines |
 | Network required | no | **VNet + PE** | no | no |
 
 Read across the top three rows: everything that could bias the result is held constant.

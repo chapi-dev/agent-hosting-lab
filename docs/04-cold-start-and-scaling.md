@@ -236,6 +236,6 @@ Use hosted or hybrid, and pre-create sessions. It is a handful of lines in the c
 recovers two thirds of the only latency disadvantage hosted agents have.
 
 Do not "solve" cold start by keeping self-hosted replicas warm unless you have measured that you
-need it. That choice buys ~460 ms of steady-state latency and costs you the 509 lines, the
+need it. That choice buys ~460 ms of steady-state latency and costs you the 527 lines, the
 network topology, the shared-state bottleneck, and the session-isolation security boundary
 described in [03-the-cost-of-self-hosting.md](03-the-cost-of-self-hosting.md).

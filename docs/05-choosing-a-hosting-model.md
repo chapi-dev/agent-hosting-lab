@@ -83,7 +83,7 @@ Both are satisfied by a small stateless service. Neither requires self-hosting t
 
 Four costs, all measured:
 
-1. **9.6x the supporting code** — 509 lines versus 53. See [03](03-the-cost-of-self-hosting.md).
+1. **9.94x the supporting code** — 527 lines versus 53. See [03](03-the-cost-of-self-hosting.md).
 2. **Session isolation becomes a security boundary you own.** Get the key wrong self-hosted and
    one user reads another's data. Get it wrong hosted and one conversation loses its own state.
 3. **Governance surface.** This lab needed a VNet, a private endpoint, a private DNS zone and an
@@ -100,11 +100,12 @@ Four costs, all measured:
 client ──▶ router (self-hosted, stateless) ──▶ hosted agent runtime
              • intent classification              • per-session sandbox
              • authorization                      • state, scaling, identity
-             • private egress                     • telemetry
+             • signed session handles             • telemetry
+             • private egress
              • guardrails
 ```
 
-Cost: 141 lines and ~200 ms of proxy latency.
+Cost: 175 lines and ~200 ms of proxy latency.
 
 Buys: session-state correctness for free, no state backend, no VNet requirement for the runtime,
 no Dockerfile for the agent, plus full control over routing and authorization.
@@ -112,6 +113,12 @@ no Dockerfile for the agent, plus full control over routing and authorization.
 The router **must stay stateless**. The moment it remembers a session it needs a database, and
 you have reintroduced self-hosting economics through the side door. Return both session handles
 to the caller and require them on the next turn — `src/selfhosted/router.py` shows the pattern.
+
+**And it must sign those handles.** This is the hybrid's one hidden obligation: the router calls
+the runtime with a single managed identity for every user, so the runtime can no longer tell
+your users apart, and session authorization silently becomes yours. 34 of the 175 lines are
+exactly that. See [02, Finding 4](02-state-and-sessions.md#finding-4-the-session-id-is-the-isolation-boundary-and-that-changes-what-the-router-owes-you)
+— we shipped the naive version first, so this is a warning rather than a theory.
 
 ## Migration path
 

@@ -190,8 +190,11 @@ agent = build_agent(STORE, "session")   # correct
 ```
 
 The sandbox is *already* per-session. The platform has given this conversation its own machine
-and its own `$HOME`, and no other conversation can reach either. There is nothing left to key
-by. A constant path inside a private sandbox is isolated by construction.
+and its own `$HOME`, and nothing reaches it without presenting that session's id. There is
+nothing left to key by. A constant path inside a private sandbox is isolated by construction.
+
+Note the precise wording — *without presenting that session's id*. That qualifier is doing more
+work than it looks, and Finding 4 is about what happens when someone else presents it.
 
 Compare the blast radius of getting the key wrong in each model:
 
@@ -202,6 +205,94 @@ Compare the blast radius of getting the key wrong in each model:
 The isolation is structural rather than something the code must get right. That difference —
 not the line count — is the strongest argument for hosted runtimes in a multi-tenant,
 employee-facing deployment.
+
+---
+
+## Finding 4: the session id *is* the isolation boundary, and that changes what the router owes you
+
+Finding 3 leans on sandbox isolation. It is worth knowing exactly what that isolation is made
+of, because the answer decides how much security work the hybrid pattern still owes you.
+
+We measured it (`experiments/06_session_isolation.py`, part 1). Three facts, in order:
+
+**1. The runtime accepts session ids it never issued.** Send `agent_session_id` as 64
+characters of `a` and it works. The id is a name the caller chooses, not a token the platform
+mints.
+
+**2. Knowing the id is enough to read the session's state — no conversation history required.**
+
+```
+turn A   agent_session_id=X, "Add Barcelona to my trip"   -> "Added Barcelona to your trip."
+turn B   agent_session_id=X, NEW conversation,
+         no previous_response_id, "What is in my trip?"   -> "Your trip includes: Barcelona."
+control  agent_session_id=Y, same question                -> "Your trip is empty."
+```
+
+Turn B shares nothing with turn A except the session id. The control rules out the model simply
+being agreeable.
+
+**3. The runtime always echoes back the id you sent**, valid or not. So you cannot detect a
+failed reattach by inspecting the response. Latency is the only honest signal — which is why
+[04-cold-start-and-scaling.md](04-cold-start-and-scaling.md) measures it instead of trusting a
+field.
+
+### Why this is not a runtime bug
+
+Every call above carried the same Azure AD identity. This is not a bypass between principals,
+and the runtime is behaving correctly: when each end user calls with their own credentials,
+Entra has already separated them and the session id only has to select *which* of that user's
+sandboxes to open.
+
+The hybrid pattern breaks that assumption. The router calls the runtime with **one managed
+identity on behalf of every user**, so from the runtime's side all your users are the same
+principal. Whatever the router accepts from one client, it will happily perform for any client.
+
+> **The consequence:** the moment you put a router in front of a hosted agent, session
+> authorization becomes *yours*. The platform cannot do it for you, because you have taken away
+> the only thing it could have used to tell your users apart.
+
+### What the router does instead
+
+Never accept a raw session id from a client. Issue a **handle** that binds the session to the
+user it was created for:
+
+```python
+handle = f"{agent_session_id}.{b64url(HMAC_SHA256(SESSION_SECRET, f'{agent_session_id}|{user}'))}"
+```
+
+- `/prewarm` returns the handle and **never** the raw id.
+- `/chat` recomputes the signature for *the calling user* and rejects a mismatch with 403. A
+  handle minted for Alice is useless to Mallory, and a raw id is useless to everybody.
+- Verification is a hash, so the router stays **stateless** — no session table, no database, and
+  it still scales to any number of replicas.
+- Use `hmac.compare_digest`, not `==`. This is a signature check on attacker-controlled input,
+  which is exactly where timing side channels live.
+- The signing key must be **shared across replicas**. Generate it per process and requests will
+  fail 403 at random, in proportion to your replica count — a spectacularly confusing bug.
+
+Part 2 of the experiment verifies all of it against the deployed router:
+
+| Attempt | Result |
+|---|---|
+| Owner replays their own handle | **200**, sees their own state |
+| Another user replays that handle verbatim | **403** |
+| Another user sends a raw platform-shaped id | **403** |
+
+### The honest scorecard
+
+This finding does *not* undo Finding 3 — it prices it. Sandbox isolation is real and you still
+get it for free. What you do not get for free is *authorization*, and only in the hybrid shape:
+
+| Shape | Who separates users? |
+|---|---|
+| Client → hosted agent, user's own credentials | Entra. Nothing to build. |
+| Client → router → hosted agent (hybrid) | **You.** 34 measured lines of HMAC, and you must not skip them. |
+| Self-hosted | You, for both isolation *and* state. |
+
+Thirty-four lines is a small price — 6% of what self-hosting costs, and it does not grow as you
+add agents. But it belongs on the estimate, and it belongs in the security review: silently
+inheriting "the platform isolates sessions" from a diagram where the arrows have changed is how
+this gets missed.
 
 ---
 
@@ -231,5 +322,10 @@ If you build the hybrid:
 
 - [ ] Keep the router stateless. The moment it remembers a session, it needs a database and you
       are back to self-hosting economics.
+- [ ] **Never accept a raw `agent_session_id` from a client.** Issue a signed handle bound to the
+      caller and reject handles that do not match. See Finding 4 — the router is now the only
+      thing separating your users.
+- [ ] Share the signing key across replicas, and derive the user identity from a validated token,
+      not a header.
 - [ ] Return both handles to the caller and require them on the next turn.
 - [ ] Expose a `/prewarm` endpoint so the client can provision a sandbox before the user types.

@@ -1,0 +1,106 @@
+{
+  "experiment": "prewarm",
+  "utc": "20260826T052311Z",
+  "results": {
+    "selfhosted-naive": {
+      "kind": "selfhosted",
+      "rounds": 4,
+      "think_seconds": 8.0,
+      "cold_ms": {
+        "median": 1968,
+        "samples": [
+          2209,
+          1775,
+          1938,
+          1998
+        ]
+      },
+      "prewarmed_ms": {
+        "median": 3308,
+        "samples": [
+          5878,
+          2179,
+          1943,
+          4438
+        ]
+      },
+      "saved_ms": -1340,
+      "saved_pct": -68.1
+    },
+    "selfhosted-hardened": {
+      "kind": "selfhosted",
+      "rounds": 4,
+      "think_seconds": 8.0,
+      "cold_ms": {
+        "median": 2136,
+        "samples": [
+          2092,
+          2179,
+          2073,
+          4114
+        ]
+      },
+      "prewarmed_ms": {
+        "median": 2366,
+        "samples": [
+          5584,
+          2186,
+          1908,
+          2547
+        ]
+      },
+      "saved_ms": -230,
+      "saved_pct": -10.8
+    },
+    "hosted-agent": {
+      "kind": "hosted",
+      "rounds": 4,
+      "think_seconds": 8.0,
+      "cold_ms": {
+        "median": 9170,
+        "samples": [
+          8910,
+          11157,
+          9430,
+          8830
+        ]
+      },
+      "prewarmed_ms": {
+        "median": 3892,
+        "samples": [
+          2623,
+          4926,
+          2859,
+          5149
+        ]
+      },
+      "saved_ms": 5278,
+      "saved_pct": 57.6
+    },
+    "hybrid-router": {
+      "kind": "router",
+      "rounds": 4,
+      "think_seconds": 8.0,
+      "cold_ms": {
+        "median": 9300,
+        "samples": [
+          9332,
+          9267,
+          8180,
+          12385
+        ]
+      },
+      "prewarmed_ms": {
+        "median": 4596,
+        "samples": [
+          2439,
+          4551,
+          4642,
+          5295
+        ]
+      },
+      "saved_ms": 4704,
+      "saved_pct": 50.6
+    }
+  }
+}

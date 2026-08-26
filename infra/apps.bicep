@@ -51,7 +51,16 @@ param imageTag string = 'v1'
 @description('Endpoint of the Foundry hosted agent, for the hybrid router. Empty until the hosted agent exists.')
 param hostedAgentEndpoint string = ''
 
-var image = '${acrLoginServer}/trip-planner:${imageTag}'
+@description('''
+Secret the router signs session handles with. Must be the same on every replica:
+a handle issued by one replica is verified by another, so a per-instance value
+would reject valid sessions at random. Rotating it invalidates live sessions,
+which costs users one cold start and nothing else.
+''')
+@secure()
+param sessionSecret string = newGuid()
+
+var image = '${acrLoginServer}/agent-hosting-lab:${imageTag}'
 
 // Environment variables every variant needs. Note that under the hosted model
 // none of these are written by hand: the platform injects the project endpoint
@@ -266,6 +275,12 @@ resource hybrid 'Microsoft.App/containerApps@2025-01-01' = if (!empty(hostedAgen
           identity: identityId
         }
       ]
+      secrets: [
+        {
+          name: 'session-secret'
+          value: sessionSecret
+        }
+      ]
     }
     template: {
       containers: [
@@ -290,6 +305,10 @@ resource hybrid 'Microsoft.App/containerApps@2025-01-01' = if (!empty(hostedAgen
             {
               name: 'HOSTED_AGENT_ENDPOINT'
               value: hostedAgentEndpoint
+            }
+            {
+              name: 'SESSION_SECRET'
+              secretRef: 'session-secret'
             }
             {
               name: 'VARIANT'

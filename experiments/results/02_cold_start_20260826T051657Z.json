@@ -1,0 +1,130 @@
+{
+  "experiment": "cold_start",
+  "utc": "20260826T051657Z",
+  "results": {
+    "selfhosted-naive": {
+      "kind": "selfhosted",
+      "rounds": 4,
+      "first_turn_ms": {
+        "median": 2011,
+        "min": 1842,
+        "max": 5395,
+        "samples": [
+          5395,
+          1853,
+          2169,
+          1842
+        ]
+      },
+      "warm_turn_ms": {
+        "median": 2351,
+        "min": 1746,
+        "max": 6098,
+        "samples": [
+          2314,
+          1746,
+          2078,
+          2106,
+          4378,
+          2388,
+          3039,
+          6098
+        ]
+      },
+      "cold_start_penalty_ms": -340
+    },
+    "selfhosted-hardened": {
+      "kind": "selfhosted",
+      "rounds": 4,
+      "first_turn_ms": {
+        "median": 2394,
+        "min": 1754,
+        "max": 2875,
+        "samples": [
+          2875,
+          2561,
+          1754,
+          2226
+        ]
+      },
+      "warm_turn_ms": {
+        "median": 2447,
+        "min": 1825,
+        "max": 4399,
+        "samples": [
+          4321,
+          1896,
+          2815,
+          2545,
+          1825,
+          2349,
+          4399,
+          2099
+        ]
+      },
+      "cold_start_penalty_ms": -54
+    },
+    "hosted-agent": {
+      "kind": "hosted",
+      "rounds": 4,
+      "first_turn_ms": {
+        "median": 12194,
+        "min": 9599,
+        "max": 14661,
+        "samples": [
+          9599,
+          12356,
+          12033,
+          14661
+        ]
+      },
+      "warm_turn_ms": {
+        "median": 3210,
+        "min": 2560,
+        "max": 5542,
+        "samples": [
+          2560,
+          3649,
+          2966,
+          5542,
+          4508,
+          2577,
+          3453,
+          2653
+        ]
+      },
+      "cold_start_penalty_ms": 8985
+    },
+    "hybrid-router": {
+      "kind": "router",
+      "rounds": 4,
+      "first_turn_ms": {
+        "median": 10482,
+        "min": 8593,
+        "max": 11936,
+        "samples": [
+          9986,
+          8593,
+          10978,
+          11936
+        ]
+      },
+      "warm_turn_ms": {
+        "median": 3117,
+        "min": 1991,
+        "max": 6362,
+        "samples": [
+          3678,
+          1991,
+          6362,
+          2420,
+          5918,
+          3259,
+          2500,
+          2975
+        ]
+      },
+      "cold_start_penalty_ms": 7365
+    }
+  }
+}

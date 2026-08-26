@@ -139,6 +139,22 @@ az acr build --registry $acrName `
 # ----------------------------------------------------------- 5. self-hosted --
 
 Write-Step "6/7 Self-hosted container apps"
+
+# The router signs session handles with this key. Every replica must hold the
+# same value or handles issued by one replica fail verification on another, and
+# it has to survive the redeploy in step 7 or handles issued minutes ago stop
+# working. So: reuse whatever the router already has, and only mint a new one
+# on a genuinely first deployment.
+$routerName = "$Prefix-hybrid-router"
+$sessionSecret = az containerapp secret show -g $ResourceGroup -n $routerName `
+    --secret-name session-secret --query value -o tsv 2>$null
+if (-not $sessionSecret) {
+    $sessionSecret = [guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N")
+    Write-Host "minted a new session signing key" -ForegroundColor DarkGray
+} else {
+    Write-Host "reusing the router's existing session signing key" -ForegroundColor DarkGray
+}
+
 $apps = az deployment group create `
     -g $ResourceGroup -f infra/apps.bicep `
     -p prefix=$Prefix `
@@ -151,6 +167,7 @@ $apps = az deployment group create `
        cosmosEndpoint=$cosmosEndpoint `
        appInsightsConnectionString=$appInsights `
        imageTag=$ImageTag `
+       sessionSecret=$sessionSecret `
     --query properties.outputs -o json | ConvertFrom-Json
 
 $naiveUrl    = $apps.naiveUrl.value
@@ -192,6 +209,7 @@ if ($hostedEndpoint) {
            appInsightsConnectionString=$appInsights `
            imageTag=$ImageTag `
            hostedAgentEndpoint=$hostedEndpoint `
+           sessionSecret=$sessionSecret `
         --query properties.outputs -o json | ConvertFrom-Json
     $hybridUrl = $routed.hybridUrl.value
 }

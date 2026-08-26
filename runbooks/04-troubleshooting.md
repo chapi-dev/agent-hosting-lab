@@ -109,18 +109,80 @@ are correct, they are just uniformly slow. The tell is the *shape* of the latenc
 | Session dropped | 9115 ms | 9634 ms | 9634 ms |
 
 A healthy session pays the sandbox cold start once. If turn 2 costs the same as turn 1, you are
-opening a new sandbox every turn: check that the client stores `agent_session_id` and
+opening a new sandbox every turn: check that the client stores `session_handle` and
 `previous_response_id` from each response and sends both back on the next request.
 
+> **Do not try to detect this from a field in the response.** We tried, and it does not work:
+> the runtime **echoes back whatever `agent_session_id` you sent**, including ids it has never
+> seen (64 characters of `a` come back verbatim). So a response that names your session proves
+> nothing about whether your session was actually reattached. Latency is the only honest signal
+> — which is why the table above is the diagnostic.
+
+Measure it directly:
+
 ```powershell
-# Confirm the id is stable across turns - it should be identical every time
-curl -s -X POST "$env:ROUTER_URL/chat" -H "content-type: application/json" `
-  -d '{"session_id":"probe","message":"hello"}' | ConvertFrom-Json |
-  Select-Object agent_session_id, previous_response_id
+$h  = @{ "x-user-id" = "probe-user" }
+$pw = Invoke-RestMethod -Method Post "$env:HYBRID_URL/prewarm" -Headers $h
+
+$t1 = Measure-Command {
+  $script:r1 = Invoke-RestMethod -Method Post "$env:HYBRID_URL/chat" -Headers $h `
+    -ContentType "application/json" `
+    -Body (@{ session_id="probe"; message="Add Paris to my trip"
+              session_handle=$pw.session_handle } | ConvertTo-Json)
+}
+$t2 = Measure-Command {
+  Invoke-RestMethod -Method Post "$env:HYBRID_URL/chat" -Headers $h `
+    -ContentType "application/json" `
+    -Body (@{ session_id="probe"; message="What is in my trip?"
+              session_handle=$r1.session_handle
+              previous_response_id=$r1.previous_response_id } | ConvertTo-Json) | Out-Null
+}
+"turn1={0:n0}ms  turn2={1:n0}ms" -f $t1.TotalMilliseconds, $t2.TotalMilliseconds
+# healthy:  turn1=10004ms  turn2=2413ms
+# dropped:  turn1=9115ms   turn2=9634ms
 ```
+
+If both turns are slow *and* the second answer has forgotten Paris, the session is being
+dropped. If both are slow but the answer is correct, see "everything is slow" below — the model
+deployment may simply be under contention.
 
 Over a twenty-turn conversation this is the difference between 56 s and 193 s of cumulative
 latency. See `time_router()` in `experiments/02_cold_start.py` for a correct client loop.
+
+### `/chat` returns 503 "session signing is not configured"
+
+The router refuses to run without `SESSION_SECRET`, deliberately: falling back to raw session
+ids would silently remove the only thing separating one user's session from another's.
+
+```powershell
+Invoke-RestMethod "$env:HYBRID_URL/health" | Select-Object session_signing_configured
+```
+
+`False` almost always means the image was updated in place:
+
+```powershell
+az containerapp update -n aghl-hybrid-router --image ...:v8    # <- sets the image only
+```
+
+That creates neither the secret nor the environment variable. Deploy `infra/apps.bicep` with
+`sessionSecret=`, or add them explicitly — see runbook 03, step 4.
+
+### `/chat` returns 403 "session handle is not valid for this user"
+
+Working as intended if the handle really does belong to somebody else. Otherwise, in order of
+likelihood:
+
+1. **The signing key differs between replicas.** If it is generated per process rather than
+   supplied as a shared secret, the same handle succeeds or fails depending on which replica
+   answers — roughly 50% of requests with two replicas. Confirm the value comes from
+   `secretRef: 'session-secret'`.
+2. **The key rotated under a live session.** Redeploying with a fresh `sessionSecret`
+   invalidates every handle already in the wild. `scripts/deploy.ps1` reuses the router's
+   existing secret for this reason.
+3. **The `x-user-id` header changed mid-conversation** — or is missing, in which case the caller
+   is `anonymous` and only matches other anonymous callers. In production this identity comes
+   from a validated token, so the equivalent symptom is a token whose subject claim is not
+   stable.
 
 ### Diagnosing generally
 
@@ -220,8 +282,15 @@ health probe.
 
 ### 503 `HOSTED_AGENT_ENDPOINT not configured`
 
-The env var is unset or empty. It must be the full **responses** endpoint including
-`?api-version=v1`.
+The env var is unset or empty. Either form of the endpoint works — the router normalises both:
+
+```
+https://<foundry>/api/projects/<p>/agents/<name>/endpoint/protocols/openai
+https://<foundry>/api/projects/<p>/agents/<name>/endpoint/protocols/openai/responses?api-version=v1
+```
+
+If you see `API version not supported` instead, you concatenated the second form with a path and
+produced `.../responses?api-version=v1/responses?api-version=v1`.
 
 ### 502 from `/chat`
 
@@ -249,6 +318,26 @@ Check the URL derivation. Sessions hang off the agent endpoint root:
 
 ---
 
+## Everything is slow, including the self-hosted controls
+
+If *all four* targets slow down together — self-hosted included, and those never touch a
+sandbox — the problem is not sessions. It is the shared model deployment.
+
+We hit this after running eight rounds of the pre-warm experiment back to back: the next router
+call took 10.8 s on turn 1 *and* 10.1 s on turn 2, which looks exactly like a dropped session.
+Two repeats a minute later were normal (3.8 s / 2.6 s). Nothing had changed but the queue.
+
+| Observation | Interpretation |
+|---|---|
+| Only hosted/hybrid slow, self-hosted fine | sandbox cold start — a real finding |
+| All four slow together | model deployment contention — wait, or raise the TPM quota |
+| Slow and it does not recover | check the deployment's rate limits before blaming the code |
+
+Always re-measure before drawing a conclusion. A single timing on a shared model deployment is
+an anecdote, which is why every experiment here takes a median over several rounds.
+
+---
+
 ## Environment quirks (Windows / PowerShell)
 
 | Symptom | Cause | Fix |
@@ -269,9 +358,12 @@ often each was the actual cause in this lab.
 1. **Is it a state bug or a logic bug?** Ask the same question twice in one session. Consistent
    wrong answers are logic; drifting answers are state.
 2. **Which replica served it?** Different replicas plus local disk is the bug.
-3. **Is the session attached?** Compare `agent_session_id` across turns. A changing value means
-   a new sandbox each turn.
+3. **Is the session attached?** Do *not* try to answer this from a response field — the runtime
+   echoes back whatever session id you sent, so it always looks attached. Compare turn 1 and
+   turn 2 latency instead: a warm turn 2 means attached.
 4. **Is it in the body or the header?** The header alone does nothing on turn one.
 5. **Did the agent even start?** 424 means it crashed at import. Read the console logs.
+6. **Is everything slow, or just the hosted paths?** Everything means model contention, not
+   sessions.
 6. **Is a policy reverting your config?** `az policy state list` before debugging any
    networking or auth issue in a governed tenant.

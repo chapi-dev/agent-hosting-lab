@@ -80,16 +80,17 @@ This is the honest cost of hosted agents and the lab does not hide it. Starting 
 means the platform provisions a sandbox, and that takes seven to eight seconds. Self-hosted
 containers kept warm by minimum replicas do not pay it.
 
-We ran this three times, hours apart: the hosted penalty came out at +6840, +7818 and +6801 ms,
-while the self-hosted controls scattered between −379 and +380 ms. The effect is roughly twenty
-times the run-to-run noise, so the conclusion does not depend on which run you read.
+We ran this four times, hours apart and across a security refactor of the session path: the
+hosted penalty came out at +6840, +7818, +6801 and +8985 ms, while the self-hosted controls
+scattered between −379 and +380 ms. The effect is roughly twenty times the run-to-run noise, so
+the conclusion does not depend on which run you read.
 
 But note the second column. Once the session exists, the two models are within ~400 ms of each
 other. The penalty is **per session, not per turn** — and it is paid when the session is
 *created*, which need not be when the user sends their first message.
 
 One caveat that costs real money in production: "per session" only holds if your client echoes
-`agent_session_id` and `previous_response_id` back on every turn. Drop them and every turn opens
+the session handle and `previous_response_id` back on every turn. Drop them and every turn opens
 a fresh sandbox — 9634 ms per turn instead of 2413 ms, with no error to tell you. We measured
 that by accident before fixing our own test harness.
 
@@ -123,17 +124,52 @@ See [docs/04-cold-start-and-scaling.md](docs/04-cold-start-and-scaling.md).
 | | Lines | Ratio to agent logic |
 |---|---|---|
 | Shared agent logic | 122 | 1.0x |
-| **Self-hosted only** | **509** | 4.17x |
+| **Self-hosted only** | **527** | 4.32x |
 | **Hosted only** | **53** | 0.43x |
 
-**Self-hosting costs 9.6x the supporting code** to run the same agent.
+**Self-hosting costs 9.94x the supporting code** to run the same agent.
 
-The 509 lines are not padding: a web server (84), a Dockerfile (25), pinned requirements (9),
-Container Apps Bicep (255), a virtual network (96) and a VNet-injected environment (40). Every
+The 527 lines are not padding: a web server (84), a Dockerfile (25), pinned requirements (9),
+Container Apps Bicep (273), a virtual network (96) and a VNet-injected environment (40). Every
 line is something a person wrote, reviews, patches and gets paged about.
 
 The hosted variant's 53 lines are a 20-line handler, four requirements and a 29-line
 `azure.yaml`. See [docs/03-the-cost-of-self-hosting.md](docs/03-the-cost-of-self-hosting.md).
+
+### 5. What actually isolates one user from another
+
+The hosted runtime gives every session its own sandbox. We tested what stops somebody else
+opening it, and the answer is: **nothing except knowing the session id.**
+
+```
+turn A   agent_session_id=X, "Add Barcelona to my trip"   -> "Added Barcelona to your trip."
+turn B   agent_session_id=X, NEW conversation,
+         no previous_response_id, "What is in my trip?"   -> "Your trip includes: Barcelona."
+control  agent_session_id=Y, same question                -> "Your trip is empty."
+```
+
+Turn B shares nothing with turn A but the id. The runtime also accepts ids it never issued (64
+characters of `a` works) and **echoes back whatever id you send**, so you cannot detect a failed
+reattach from the response — only from latency.
+
+**This is not a runtime bug.** Every call above used the same Azure AD identity, and when each
+end user calls with their own credentials, Entra has already separated them.
+
+It becomes your problem in the hybrid, and only there: the router calls the runtime with **one
+managed identity on behalf of every user**, so the runtime can no longer tell your users apart.
+Pass a client-supplied session id straight through — which our first version did — and any user
+who learns another's id reads their session.
+
+The fix is a signed handle that binds a session to the user it was issued for. Measured cost:
+**34 lines**, no database, router stays stateless. Verified against the deployment:
+
+| Attempt | Result |
+|---|---|
+| Owner replays their own handle | **200**, sees their own state |
+| Another user replays that handle | **403** |
+| Another user sends a raw session id | **403** |
+
+See [docs/02-state-and-sessions.md](docs/02-state-and-sessions.md#finding-4-the-session-id-is-the-isolation-boundary-and-that-changes-what-the-router-owes-you).
 
 ## The finding nobody predicted
 
@@ -176,12 +212,13 @@ hybrid is the only shape where neither failure lands on you.
       │
       ▼
   ┌─────────────────────────────────────┐
-  │  Router  (self-hosted, stateless)   │   ← you own this. 141 lines.
+  │  Router  (self-hosted, stateless)   │   ← you own this. 175 lines.
   │  • intent classification            │      Scales freely: no session state.
-  │  • authorization / entitlements     │
-  │  • private network egress           │
+  │  • authorization / entitlements     │      Issues signed session handles —
+  │  • signed session handles           │      the only thing separating users
+  │  • private network egress           │      once you call with one identity.
   └──────────────┬──────────────────────┘
-                 │  x-agent-session-id + previous_response_id
+                 │  agent_session_id + previous_response_id
                  ▼
   ┌─────────────────────────────────────┐
   │  Foundry Hosted Agent runtime       │   ← the platform owns this.
@@ -195,15 +232,21 @@ agent handles a request, and applying authorization *before* routing. Those are 
 run your own compute, and none of them are about running a model.
 
 The runtime is hosted because session state, sandboxing, scaling, identity and telemetry are
-solved problems, and solving them again costs 9.6x the code and a network topology.
+solved problems, and solving them again costs 9.94x the code and a network topology.
 
 The router holds no session state at all. It returns both session handles to the caller and
 takes them back on the next turn. That is why it survives being spread across two replicas in
 the experiment above while still passing the state test.
 
+It is also the one place the hybrid asks something back. Because the router calls the runtime
+with a single managed identity, **session authorization stops being the platform's job and
+becomes yours** — 34 lines of signed handles, and a security review that knows to look. Small,
+but not free, and easier to budget for than to discover.
+
 | Requirement | Self-hosted | Hosted | Hybrid |
 |---|---|---|---|
 | Session state across replicas | you build it | ✅ structural | ✅ structural |
+| Session isolation between users | you build it | ✅ Entra, per-caller | ⚠️ **you build it** (34 lines) |
 | Authorization-aware routing | ✅ | ❌ | ✅ |
 | Private network / on-prem backends | ✅ | ❌ | ✅ |
 | Arbitrary Python business logic | ✅ | ✅ | ✅ |
@@ -211,7 +254,7 @@ the experiment above while still passing the state test.
 | Scales without a state backend | ❌ | ✅ | ✅ |
 | First-turn latency | ✅ ~1.9 s | ❌ ~10.2 s | ❌ ~10.0 s |
 | First-turn latency, session pre-created | ~1.9 s | ✅ ~3.2 s | ✅ ~4.0 s |
-| Lines of code you maintain | 509 | 53 | 194 (53 + 141) |
+| Lines of code you maintain | 527 | 53 | 228 (53 + 175) |
 
 ## Repository map
 
@@ -223,14 +266,15 @@ src/selfhosted/ FastAPI server + hybrid router
 src/hosted/     the Foundry hosted handler
 infra/          Bicep: platform, apps, network, VNet environment
 experiments/    the measurements, and their raw JSON results
+                (results/README.md maps every published number to its run)
 scripts/        deploy and prepare helpers
 ```
 
 ### Documents
 
 1. [The four variants](docs/01-the-four-variants.md) — what each one is, and why the comparison is fair
-2. [State and sessions](docs/02-state-and-sessions.md) — the same class as bug and as feature; the two session identifiers
-3. [The cost of self-hosting](docs/03-the-cost-of-self-hosting.md) — 9.6x, and the governance policy that caused most of it
+2. [State and sessions](docs/02-state-and-sessions.md) — the same class as bug and as feature; the two session identifiers; who actually isolates your users
+3. [The cost of self-hosting](docs/03-the-cost-of-self-hosting.md) — 9.94x, and the governance policy that caused most of it
 4. [Cold start and scaling](docs/04-cold-start-and-scaling.md) — the 7.8 s penalty and how to make it disappear
 5. [Choosing a hosting model](docs/05-choosing-a-hosting-model.md) — a decision procedure, not a feature table
 
@@ -250,7 +294,7 @@ Prerequisites: Azure CLI (logged in), `azd` ≥ 1.20, Python 3.11+, an Azure sub
 git clone <this-repo>
 cd agent-hosting-lab
 ./scripts/deploy.ps1            # provisions everything, writes .env.lab
-./scripts/run-experiments.ps1   # runs all three experiments
+./scripts/run-experiments.ps1   # runs all six experiments
 ```
 
 `deploy.ps1` is idempotent and takes roughly 25 minutes end to end, most of it waiting for

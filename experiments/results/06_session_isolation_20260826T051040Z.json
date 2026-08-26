@@ -1,0 +1,19 @@
+{
+  "experiment": "session_isolation",
+  "utc": "20260826T051040Z",
+  "runtime_direct": {
+    "accepted_client_chosen_id": true,
+    "victim_first_turn": "Added Barcelona to your trip.",
+    "read_with_id_only": "Your trip includes: Barcelona.",
+    "control_with_other_id": "Your trip is empty.",
+    "state_leaked": true,
+    "control_clean": true
+  },
+  "through_router": {
+    "owner_replay_status": 200,
+    "owner_sees_own_state": true,
+    "stolen_handle_status": 403,
+    "raw_id_status": 403,
+    "contained": true
+  }
+}

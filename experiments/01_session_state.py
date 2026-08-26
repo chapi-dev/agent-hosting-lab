@@ -134,22 +134,26 @@ def router_conversation(base_url: str, session_id: str) -> list[dict]:
     back on each reply and the caller echoes it on the next request. That is the
     trade the hybrid pattern makes explicit: the orchestration layer stays
     disposable precisely because it refuses to hold state.
+
+    The handle is signed and bound to the user in `x-user-id`, so it cannot be
+    replayed by anyone else - see experiment 6 for why that matters.
     """
     out = []
-    agent_session_id = None
+    session_handle = None
     previous_response_id = None
+    headers = {"x-user-id": f"user-{session_id}"}
     with httpx.Client(timeout=240.0) as client:
         for turn in TURNS:
             payload = {"session_id": session_id, "message": turn}
-            if agent_session_id:
-                payload["agent_session_id"] = agent_session_id
+            if session_handle:
+                payload["session_handle"] = session_handle
             if previous_response_id:
                 payload["previous_response_id"] = previous_response_id
             started = time.perf_counter()
-            resp = client.post(f"{base_url}/chat", json=payload)
+            resp = client.post(f"{base_url}/chat", json=payload, headers=headers)
             resp.raise_for_status()
             body = resp.json()
-            agent_session_id = body.get("agent_session_id") or agent_session_id
+            session_handle = body.get("session_handle") or session_handle
             previous_response_id = body.get("previous_response_id") or previous_response_id
             out.append(
                 {
@@ -158,7 +162,10 @@ def router_conversation(base_url: str, session_id: str) -> list[dict]:
                     "replica": body.get("replica", ""),
                     "state_backend": body.get("state_backend", ""),
                     "routed_to": body.get("routed_to", ""),
-                    "agent_session_id": agent_session_id,
+                    # Only the platform id is interesting for the transcript and
+                    # the router never reveals it, so record the handle's shape
+                    # rather than the secret it protects.
+                    "session_handle_prefix": (session_handle or "")[:12],
                     "latency_ms": int((time.perf_counter() - started) * 1000),
                 }
             )

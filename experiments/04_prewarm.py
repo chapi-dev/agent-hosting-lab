@@ -106,20 +106,21 @@ class RouterSession:
         self.url = url
         self.client = client
         self.session_id = f"exp4-{uuid.uuid4().hex[:10]}"
-        self.agent_session_id: str | None = None
+        self.session_handle: str | None = None
         self.previous_response_id: str | None = None
+        self.headers = {"x-user-id": f"user-{self.session_id}"}
 
     def send(self, message: str) -> int:
         payload = {"session_id": self.session_id, "message": message}
-        if self.agent_session_id:
-            payload["agent_session_id"] = self.agent_session_id
+        if self.session_handle:
+            payload["session_handle"] = self.session_handle
         if self.previous_response_id:
             payload["previous_response_id"] = self.previous_response_id
         started = time.perf_counter()
-        resp = self.client.post(f"{self.url}/chat", json=payload)
+        resp = self.client.post(f"{self.url}/chat", json=payload, headers=self.headers)
         resp.raise_for_status()
         body = resp.json()
-        self.agent_session_id = body.get("agent_session_id") or self.agent_session_id
+        self.session_handle = body.get("session_handle") or self.session_handle
         self.previous_response_id = (
             body.get("previous_response_id") or self.previous_response_id
         )

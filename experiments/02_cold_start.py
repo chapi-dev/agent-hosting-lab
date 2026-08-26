@@ -105,20 +105,21 @@ def time_router(url: str) -> list[int]:
     """
     session_id = f"exp2-{uuid.uuid4().hex[:10]}"
     timings = []
-    agent_session_id = None
+    session_handle = None
     previous_response_id = None
+    headers = {"x-user-id": f"user-{session_id}"}
     with httpx.Client(timeout=240.0) as client:
         for turn in TURNS:
             payload = {"session_id": session_id, "message": turn}
-            if agent_session_id:
-                payload["agent_session_id"] = agent_session_id
+            if session_handle:
+                payload["session_handle"] = session_handle
             if previous_response_id:
                 payload["previous_response_id"] = previous_response_id
             started = time.perf_counter()
-            resp = client.post(f"{url}/chat", json=payload)
+            resp = client.post(f"{url}/chat", json=payload, headers=headers)
             resp.raise_for_status()
             body = resp.json()
-            agent_session_id = body.get("agent_session_id") or agent_session_id
+            session_handle = body.get("session_handle") or session_handle
             previous_response_id = body.get("previous_response_id") or previous_response_id
             timings.append(int((time.perf_counter() - started) * 1000))
     return timings
